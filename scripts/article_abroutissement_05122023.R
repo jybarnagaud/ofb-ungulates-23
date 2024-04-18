@@ -14,7 +14,6 @@
 
 ### for figures : !!! homogenize scales within figures!!!
 
-setwd("D:/encadrement/Lefort_2023")
 
 #---------------------------#
 #### necessary libraries ####
@@ -465,7 +464,7 @@ ci.all$variable <-
 
 # Odds ratio table for export
 
-#write.table(ci.all,"outputs/table_odds_ratios_community.txt",sep=";")
+write.table(ci.all,"outputs/table_odds_ratios_community.txt",sep=";")
 
 ## forest plots of coefficients with the scaled model [FIGURE 2]----------------
 
@@ -588,7 +587,7 @@ p2 <- ggplot(prop.abr)+
 
 p1+p2
 
-#ggsave("outputs/explo_multisp.png",width = 10, height = 5)
+ggsave("outputs/explo_multisp.png",width = 10, height = 5)
 
 ## multi-species mixed GAM (not used in the article) ---------------------------
 
@@ -863,7 +862,7 @@ dat.or <-
 elev.sp.or <-
   or_glm(data = dat.or, model = sp.mod, incr = increments)
 
-# créer un jeu de données
+# cr?er un jeu de donn?es
 
 ci.sp <- as.data.frame(elev.sp.or[, c(2, 3, 4)])
 colnames(ci.sp) <- c("odds", "lower", "upper")
