@@ -816,13 +816,20 @@ comp.sp.all <-
 
 # graphical displays (note : there are warnings about NAs which are only due to
 # the way the data objects are restructured to perform the plots)
+# the order of levels in the "model" variable is forced, otherwise unnest reorders randomly... 
 
 comp.sp.all.df <- unnest(comp.sp.all,cols="data")
+comp.sp.all.df$model <- factor(comp.sp.all.df$model , levels = unique(comp.sp.all.df$model))
+                               
+                                
+library(colorspace)
+q10 <- qualitative_hcl(10, "Dark2")
+names.q10 <- levels(abr.data5$Nom_Latin)
 
 p.gam.ele <- ggplot(comp.sp.all.df) +
   aes(x = elev.buff, y = est, col = model) +
-  scale_color_viridis_d(labels = levels(abr.data5$Nom_Latin)) +
-  geom_line() +
+  scale_color_manual(values = q10, labels = names.q10) +
+  geom_line(linewidth = 2) +
   theme_classic() +
   labs(x = "Elevation (m)", y = "Scaled marginal effect", title =
          "") 
@@ -1076,4 +1083,154 @@ cowplot::plot_grid(
 
 ggsave("outputs/species_level_forest_plots.png", width = 9, height = 9)
 
+## sensitivity analysis : remove Hedera helix ----------------------------------
 
+# presence matrix without Hedera
+
+pres.wide1.nohedera <- pres.wide1[,!names(abr.wide1)%in%"Hedera helix"]
+
+# binary browsing without Hedera
+
+abr.wide1.nohedera <- abr.wide1[,!names(abr.wide1)%in%"Hedera helix"]
+abr.sum.nohedera <- apply(abr.wide1.nohedera,1,sum)
+abr2.nohedera <- abr.sum.nohedera
+abr2.nohedera[abr2.nohedera>0] <- 1
+
+# prepare data set without Hedera
+
+abr.rs.nohedera <- apply(abr.wide1.nohedera,1,sum)
+pres.rs.nohedera <- apply(pres.wide1.nohedera,1,sum)
+
+df.vr.nohedera <-
+  data.frame(
+    Numero.placette = Numero.placette,
+    Annee = Annee,
+    conso = abr.rs.nohedera,
+    presence = pres.rs.nohedera
+  )
+
+df.vrs.nohedera <-
+  merge(df.vr.nohedera, spat.data3[, c(
+    "Numero.placette",
+    "Massif",
+    "elev.buff",
+    "northness.buff",
+    "vrm.buff",
+    "dist.linear",
+    "Tirs",
+    "vis.buff"
+  )], by = "Numero.placette", all = F)
+
+df.vrst0.nohedera <-
+  merge(df.vrs.nohedera,
+        spatemp.data[, c("Numero.placette", "Annee", "Appetence_mean", "Bois")],
+        by = c("Numero.placette", "Annee"),
+        all = F)
+
+df.vrst.nohedera <- as.data.frame(df.vrst0.nohedera)
+df.vrst.nohedera$Massif <- factor(df.vrst.nohedera$Massif)
+df.vrst.nohedera$Bois <- factor(df.vrst.nohedera$Bois)
+
+df.vrst.nohedera$conso.bin <- df.vrst.nohedera$conso
+df.vrst.nohedera[which(df.vrst.nohedera$conso.bin > 0),"conso.bin"] <- 1
+
+df.vrst.nohedera$Ldist.linear <- log(df.vrst.nohedera$dist.linear+1)
+df.vrst.nohedera$LTirs <- log(df.vrst.nohedera$Tirs+1)
+df.vrst.nohedera$Lpresence <- log(df.vrst.nohedera$presence)
+
+
+# redo the community-level GLM without Hedera helix in the community
+
+sub.hedera <- subset(df.vrst.nohedera,presence != 0)
+
+glm.com.nohedera <-
+  glm(
+    conso.bin ~ elev.buff + 
+      northness.buff +
+      vrm.buff + 
+      Ldist.linear + 
+      LTirs + 
+      Appetence_mean + 
+      vis.buff + 
+      Annee +
+      Lpresence +
+      Bois + 
+      Massif ,
+    family = binomial,
+    data = sub.hedera
+  )
+
+# community level odds ratios without Hedera helix
+
+
+ci.all0.nohedera <-
+  or_glm(data = df.vrst.nohedera, model = glm.com.nohedera, incr = increments)
+
+ci.all.nohedera <- as.data.frame(ci.all0.nohedera[, c(2, 3, 4)])
+colnames(ci.all.nohedera) <- c("odds", "lower", "upper")
+
+ci.all.nohedera$species <- "community"
+ci.all.nohedera$variable <-
+  c(
+    "elev",
+    "northness",
+    "vrm",
+    "ldist.lin",
+    "ltirs",
+    "app_mean",
+    "lvisi",
+    "annee",
+    "sr",
+    "GB",
+    "PB",
+    "Semnoz",
+    "SW Bauges"
+  )
+
+
+
+## exploration of appetence and richness variables -----------------------------
+
+# plots with Fraxinus, Rubus, Vaccinium
+plots.frax <- rownames(pres.wide1)[which(pres.wide1$`Fraxinus excelsior` > 0)]
+plots.rubus <- rownames(pres.wide1)[which(pres.wide1$`Rubus sp` > 0)]
+plots.vaccinium <- rownames(pres.wide1)[which(pres.wide1$`Vaccinium sp` > 0)]
+
+# link avec covariables
+df.check <- df.vrst
+df.check$index <- paste(df.vrst$Numero.placette,df.vrst$Annee,sep="_")
+
+df.check$is.fraxinus <- 0
+df.check[which(df.check$index %in% plots.frax),"is.fraxinus"] <- 1
+
+df.check$is.rubus <- 0
+df.check[which(df.check$index %in% plots.rubus),"is.rubus"] <- 1
+
+df.check$is.vaccinium <- 0
+df.check[which(df.check$index %in% plots.vaccinium),"is.vaccinium"] <- 1
+
+p.frax.rs <- ggplot(df.check)+
+  aes(x = factor(df.check$is.fraxinus), y = Lpresence)+
+  geom_boxplot()
+
+p.frax.app <- ggplot(df.check)+
+  aes(x = factor(df.check$is.fraxinus), y = Appetence_mean)+
+  geom_boxplot()
+
+p.rub.rs <- ggplot(df.check)+
+  aes(x = factor(df.check$is.rubus), y = Lpresence)+
+  geom_boxplot()
+
+p.rub.app <- ggplot(df.check)+
+  aes(x = factor(df.check$is.rubus), y = Appetence_mean)+
+  geom_boxplot()
+
+p.vac.rs <- ggplot(df.check)+
+  aes(x = factor(df.check$is.vaccinium), y = Lpresence)+
+  geom_boxplot()
+
+p.vac.app <- ggplot(df.check)+
+  aes(x = factor(df.check$is.vaccinium), y = Appetence_mean)+
+  geom_boxplot()
+
+(p.frax.rs + p.frax.app) / (p.rub.rs + p.rub.app) / (p.vac.rs + p.vac.app)
