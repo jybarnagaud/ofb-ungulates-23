@@ -289,6 +289,78 @@ df.vrst$Bois <- factor(df.vrst$Bois)
 df.vrst$conso.bin <- df.vrst$conso
 df.vrst[which(df.vrst$conso.bin > 0),"conso.bin"] <- 1
 
+## Descriptive figure of browsing pressure -------------------------------------
+
+descr.dat <-
+  aggregate(df.vrst$conso.bin,
+            by = list(df.vrst$Annee, df.vrst$Massif),
+            FUN = "sum")
+eff.dat <-
+  aggregate(
+    df.vrst$Numero.placette,
+    by = list(df.vrst$Annee, df.vrst$Massif),
+    FUN = "length"
+  )
+
+all.descr <- merge(eff.dat, descr.dat, by = c("Group.1", "Group.2"))
+
+colnames(all.descr) <- c("year", "massif", "n.plot", "n.brows")
+
+all.descr$prop.brows = 100 * all.descr$n.brows / all.descr$n.plot
+
+# do the plot : variation per year
+
+supp.labs <- c("(b) Hautes Bauges", "(c) Semnoz", "(d) Cimeteret")
+names(supp.labs) <- c("HAUTES BAUGES", "SEMNOZ", "SW BAUGES")
+
+descr.curves <- ggplot(all.descr) +
+  aes(x = year, y = prop.brows) +
+  geom_line() +
+  geom_point() +
+  facet_wrap( ~ massif, labeller = labeller(massif = supp.labs)) +
+  theme_classic() +
+  theme(
+    strip.background = element_blank() ,
+    strip.text = element_text(face = "bold", size = 12),
+    panel.border = element_rect(
+      color = "black",
+      fill = NA,
+      size = 1
+    )
+  ) +
+  labs(x = "Years", y = "Proportion of browsed plots (%)") 
+# boxplot : variation between regions
+
+descr.regions <- ggplot(all.descr) +
+  aes(x = massif, y = prop.brows) +
+  geom_boxplot(fill = "gray90") +
+  theme_classic() +
+  labs(x = "Cluster", y = "Proportion of browsed plots (%)") +
+  scale_x_discrete(
+    labels = c(
+      "HAUTES BAUGES" = "Hautes Bauges",
+      'SEMNOZ' = 'Semnoz',
+      'SW BAUGES' = 'Cimeteret'
+    )
+  ) +
+  theme(
+    strip.background = element_blank() ,
+    strip.text = element_text(face = "bold", size = 12),
+    panel.border = element_rect(
+      color = "black",
+      fill = NA,
+      size = 1
+    ),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  ggtitle("(a) Regional variation in browsing pressure")
+    
+# both
+
+combined_plot <- descr.regions / descr.curves 
+combined_plot
+
+ggsave("outputs/curves_prop_brows.png", width = 7, height = 10 )
 
 ## Generalized Additive Model --------------------------------------------------
 
