@@ -39,6 +39,7 @@ library(spdep)
 library(mgcViz)
 library(sjPlot)
 library(oddsratio)
+library(DHARMa)
 
 #------------#
 #### Data ####
@@ -55,6 +56,18 @@ abr <- data
 
 app.sp <- read.csv2("data/scores_appetence.csv")
 div.pla <- read.csv2("data/Diversite_vegetale_placette.csv")
+
+# Names of variables (full)
+
+variable.names <- c("Species richness (log-transformed)", 
+  "Mean appetency",
+  "Years",
+  "Elevation (m)",
+  "Number of hunting shots (log-transformed)",
+  "Distance to the nearest linear element (m, log-transformed)",
+  "Rugosity (relative index)",
+  "Visibility (unit???)",
+  "Northness (relative index)")
 
 ## prepare spatial data  -------------------------------------------------------
 
@@ -357,10 +370,10 @@ descr.regions <- ggplot(all.descr) +
     
 # both
 
-combined_plot <- descr.regions / descr.curves 
+combined_plot <- descr.regions + descr.curves 
 combined_plot
 
-ggsave("outputs/curves_prop_brows.png", width = 7, height = 10 )
+ggsave("outputs/curves_prop_brows.png", width = 12, height = 6 )
 
 ## Generalized Additive Model --------------------------------------------------
 
@@ -542,9 +555,45 @@ write.table(ci.all,"outputs/table_odds_ratios_community.txt",sep=";")
 
 sc.coefs.lm <- names(coef(abrbin.glob.lm)[2:10])
 
-plot_model(
+
+fp.comm <- plot_model(
   abrbin.glob.lm,
   terms = sc.coefs.lm,
+  colors = "viridis",
+  sort.est = T,
+  transform = NULL,
+  axis.lim = c(-2, 2)
+) +
+  theme_classic() +
+  geom_hline(yintercept = 0,
+             linetype = "dashed",
+             col = "goldenrod3") +
+  labs(x = "Variables", y = "Estimates - 95%CI", title = "plot-level") +
+  scale_x_discrete(
+    labels =
+      c(
+        "Northness",
+        "Visibility",
+        "Rugosity",
+        "Distance",
+        "log(Shots)",
+        "Elevation",
+        "Years",
+        "Appetency",
+        "log(Species richness)"
+      )
+  )
+
+fp.comm
+ggsave("outputs/fit_scaled_global.png",height=8,width=4)
+
+# same thing pour non scaled coefficients 
+
+nosc.coefs.lm <- names(coef(abrbin.nosc.glob.lm)[2:10])
+
+fp.comm.nosc <- plot_model(
+  abrbin.nosc.glob.lm,
+  terms = nosc.coefs.lm,
   colors = "viridis",
   sort.est = T,
   transform = NULL
@@ -553,72 +602,81 @@ plot_model(
   geom_hline(yintercept = 0,
              linetype = "dashed",
              col = "goldenrod3") +
-  labs(x = "Scaled variables", y = "Scaled estimates - 95%CI", title = "")
+  labs(x = "Variables", y = "Estimates - 95%CI", title = "plot-level")
 
- ggsave("outputs/fit_scaled_global.png",height=8,width=4)
+fp.comm.nosc
+ggsave("outputs/fit_scaled_global_nosc.png",height=8,width=4)
+
 
  
- ## Partial residuals plots of GAM models = [FIGURE 3]--------------------------
- 
- p1 <- draw(abrbin.glob.gam, residuals = T, select = 1) +
+## Partial residuals plots of GAM models = [FIGURE 3]--------------------------
+
+ p.elev <- draw(abrbin.glob.gam, residuals = T, select = 1) +
    labs(x = "Elevation (m)", "Marginal effect", title = "") +
    theme_classic()
  
- p2 <- draw(abrbin.glob.gam, residuals = T, select = 2) +
+ p.north <- draw(abrbin.glob.gam, residuals = T, select = 2) +
    labs(x = "Northness (relative index)", "Marginal effect", title = "") +
    theme_classic()
  
- p3 <- draw(abrbin.glob.gam, residuals = T, select = 3) +
+ p.rugo <- draw(abrbin.glob.gam, residuals = T, select = 3) +
    labs(x = "Rugosity (relative index)", "Marginal effect", title = "") +
    theme_classic()
  
- p4 <- draw(abrbin.glob.gam, residuals = T, select = 4) +
+ p.dist <- draw(abrbin.glob.gam, residuals = T, select = 4) +
    labs(x = "Distance to the nearest linear element (m, log-transformed)", "Marginal effect", title =
           "") +
    theme_classic()
  
- p5 <- draw(abrbin.glob.gam, residuals = T, select = 5) +
+ p.hunt <- draw(abrbin.glob.gam, residuals = T, select = 5) +
    labs(x = "Number of hunting shots (log-transformed)", "Marginal effect", title =
           "")+
      theme_classic()
  
- p6 <- draw(abrbin.glob.gam, residuals = T, select = 6) +
-   labs(x = "mean appetency", "Marginal effect", title = "") +
+ p.app <- draw(abrbin.glob.gam, residuals = T, select = 6) +
+   labs(x = "Mean appetency", "Marginal effect", title = "") +
    theme_classic()
  
- p7 <- draw(abrbin.glob.gam, residuals = T, select = 7) +
+ p.viz <- draw(abrbin.glob.gam, residuals = T, select = 7) +
    labs(x = "Visibility (unit???)", "Marginal effect", title = "") +
    theme_classic()
  
- p8 <- draw(abrbin.glob.gam, residuals = T, select = 8) +
+ p.year <- draw(abrbin.glob.gam, residuals = T, select = 8) +
    labs(x = "Years", "Marginal effect", title = "") +
    theme_classic()
  
- p9 <- draw(abrbin.glob.gam, residuals = T, select = 9) +
+ p.sr <- draw(abrbin.glob.gam, residuals = T, select = 9) +
    labs(x = "Species richness (log-transformed)", "Marginal effect", title =
           "") +
    theme_classic()
  
- par.terms <- parametric_effects(abrbin.glob.gam)
- 
+# remains to be done (blocked by a coding issue) : plot effects of categorical variables
+
+ #p.stype <-
+ #  draw(
+  #   abrbin.glob.gam,
+   #  residuals = T,
+    # parametric = T,
+     # terms = "Bois")
+
  cowplot::plot_grid(
-   p1,
-   p2,
-   p3,
-   p4,
-   p5,
-   p6,
-   p7,
-   p8,
-   p9,
+   p.sr,
+   p.app,
+   p.elev,
+   p.hunt,
+   p.north,
+   p.rugo,
+   p.viz,
+   p.dist,
+   p.year,
    nrow = 3,
    ncol = 3,
-   labels = "AUTO"
+   labels = "auto"
  )
  
  ggsave("outputs/fit_gam_global.png",
-        height = 15,
-        width = 15)
+        height = 9,
+        width = 9)
 
 #------------------------------------------#
 #### Multi-species comparative analysis ####
@@ -626,13 +684,22 @@ plot_model(
  
 ## prepare data ----------------------------------------------------------------
 
+# add community-level browsing to the data table
+
+com.conso <-
+   as.data.frame(df.vrst[, c("Numero.placette", "Annee", "conso.bin")])
+
+abr.data2b <- merge(abr.data2,com.conso,by = c("Numero.placette","Annee"))
+
 # select the 10 most common species (highest number of occurrences)
  
-rank.sp <- rev(sort(tapply(abr.data2$Presence,INDEX = abr.data2$Nom_Latin,FUN = "sum")))
+rank.sp <- rev(sort(tapply(abr.data2b$Presence,INDEX = abr.data2b$Nom_Latin,FUN = "sum")))
 
 sp.keep <- names(rank.sp[1:10])
 
-abr.data3 <- subset(abr.data2,Nom_Latin %in% sp.keep)
+# keep only the 10 most common species and plots with at least 1 grazed species
+
+abr.data3 <- subset(abr.data2b,Nom_Latin %in% sp.keep & conso.bin == 1)
 
 # proportion of browsed sites per species
 
@@ -641,33 +708,78 @@ colnames(prop.abr)[c(1,2)] <- c("Nom_Latin","Annee")
 
 prop.abr$freq.abr <- 100 * (prop.abr$Consommation / prop.abr$Presence)
 
-# graphical displays 
+## graphical displays ----------------------------------------------------------
+
+med.per.sp <- tapply(prop.abr$freq.abr,INDEX = prop.abr$Nom_Latin, FUN = "median")
+sort(med.per.sp)
 
 p1 <- ggplot(prop.abr)+
-  aes(x = Nom_Latin,  y = freq.abr)+
-  geom_boxplot()+
+  aes(x = reorder(Nom_Latin,freq.abr,median),  y = freq.abr)+
+  geom_boxplot(fill = "gray90", alpha = 0.5)+
   theme_classic()+
-  labs(x = "Species", y = "% grazed plots per year")+ 
+  labs(x = "Species", y = "% browsed plots per year")+ 
   theme(axis.text.x = element_text(angle = 90))
 
 p2 <- ggplot(prop.abr)+
   aes(x = Annee, y = freq.abr)+
   geom_line()+
   theme_classic()+
-  labs(x = "Years", y = "% grazed plots")+
-  facet_wrap(~Nom_Latin)
+  labs(x = "", y = "% browsed plots")+
+  facet_wrap(~reorder(Nom_Latin,freq.abr,median),nrow = 4)+
+  theme_classic() +
+  theme(
+    strip.background = element_blank() ,
+    strip.text = element_text(face = "bold", size = 12),
+    panel.border = element_rect(
+      color = "black",
+      fill = NA,
+      size = 1
+    )
+  )
 
-p1+p2
+p1+p2+
+  plot_annotation(tag_levels = 'a')
 
-ggsave("outputs/explo_multisp.png",width = 10, height = 5)
+ggsave("outputs/explo_multisp.png",width = 12, height = 6)
+
+# yearly trends in browsing per species, on plots with at least one species browsed
+
+df.sp.trends <- data.frame()
+
+for(i in 1:length(sp.keep)){
+sp.test <- sp.keep[i]
+tp.trend <- subset(prop.abr, Nom_Latin == sp.test)
+off.trend <- log(tp.trend$Presence)
+glm.trend <- glm(Consommation ~ Annee, offset = off.trend,data = tp.trend, family = poisson)
+
+coefs.trend <- summary(glm.trend)$coefficients
+
+pval.over <- testDispersion(glm.trend)$p.value
+
+df.sp.trends <- rbind(df.sp.trends,c(coefs.trend[2,],pval.over))
+
+}
+colnames(df.sp.trends) <- c("trend","se.trend","z.trend","pval.trend","overdisp.trend")
+rownames(df.sp.trends) <- sp.keep
+
+# check Abies alba (only significant linear trend among all species)
+
+tp.trend.aa <- subset(prop.abr, Nom_Latin == "Abies alba")
+off.trend.aa <- log(tp.trend.aa$Presence)
+glm.trend.aa <- glm(Consommation ~ Annee, offset = off.trend.aa,data = tp.trend.aa, family = poisson)
+summary(glm.trend.aa)
+
 
 ## multi-species mixed GAM (not used in the article) ---------------------------
 
+covariates <- df.vrst[, !names(df.vrst) %in% "conso.bin"]
+
 abr.data4 <-
   merge(abr.data3,
-        df.vrst,
+        covariates,
         by = c("Numero.placette", "Annee"),
         all = F)
+
 
 abr.data5 <-
   merge(abr.data4,
@@ -941,7 +1053,7 @@ dat.or <-
 elev.sp.or <-
   or_glm(data = dat.or, model = sp.mod, incr = increments)
 
-# cr?er un jeu de donn?es
+# compile data
 
 ci.sp <- as.data.frame(elev.sp.or[, c(2, 3, 4)])
 colnames(ci.sp) <- c("odds", "lower", "upper")
@@ -1038,34 +1150,74 @@ plot_zone <- ggplot(data=or.zone.sp, aes(y=n_species, x=odds, xmin=lower, xmax=u
   geom_vline(xintercept = 1, linetype="dashed",col="steelblue") +
   facet_wrap(~variable)
 
-## forest plot of scaled effects [FIGURE 2]-------------------------------------
+## forest plot of scaled effects [FIGURE 5]-------------------------------------
 
 # has to be combined with the first part of figure 2 above
+# order plots as in the plot level analysis
+
+
 
 names(glm.sp.list) <- levels(abr.data5$Nom_Latin)
+coef.plot.level <- names(rev(sort(coef(abrbin.glob.lm)[2:10])))
+
 
 for (i in 1:length(glm.sp.list)){
   
 glm.tp <- get(glm.sp.list[i])
 sc.coefs.lm <- names(coef(glm.tp)[2:10])
 
+pos.coefs <- match( coef.plot.level,sc.coefs.lm)
+
+if(i %in%c(1,2,4,5,7,8,10)){
 assign(paste("sp_forplot",i,sep="_"),plot_model(
   glm.tp,
-  terms = sc.coefs.lm,
+  terms = coef.plot.level,
   colors = "viridis",
-  sort.est = T,
-  transform = NULL
+  sort.est = F,
+  order.terms = pos.coefs,
+  transform = NULL,
+  axis.labels = rep(" ",9),
+  axis.lim = c(-2,2)
 ) +
   theme_classic() +
   geom_hline(yintercept = 0,
              linetype = "dashed",
              col = "goldenrod3") +
-  labs(x = "Scaled variables", y = "Scaled estimates - 95%CI", title = "")
+  labs(x = "", y = "Estimates - 95%CI", title = names(glm.sp.list)[i])
+  
 )
+} else {
+  
+  assign(paste("sp_forplot",i,sep="_"),plot_model(
+    glm.tp,
+    terms = coef.plot.level,
+    colors = "viridis",
+    sort.est = F,
+    order.terms = pos.coefs,
+    transform = NULL,
+    axis.lim = c(-2,2)
+  ) +
+    theme_classic() +
+    geom_hline(yintercept = 0,
+               linetype = "dashed",
+               col = "goldenrod3") +
+    labs(x = "Variables", y = "Estimates - 95%CI", title = names(glm.sp.list)[i])+
+    scale_x_discrete(labels=c("log(Species richness)",
+      "Appetency",
+      "Years",
+      "Elevation",
+      "log(Shots)",
+      "Distance",
+      "Rugosity",
+      "Visibility",
+      "Northness"))
+  )
 }
 
+}
 
 cowplot::plot_grid(
+  fp.comm, 
   sp_forplot_1,
   sp_forplot_2,
   sp_forplot_3,
@@ -1076,9 +1228,9 @@ cowplot::plot_grid(
   sp_forplot_8,
   sp_forplot_9,
   sp_forplot_10,
-  nrow = 3,
+  nrow = 4,
   ncol = 3,
-  labels = "AUTO"
+  labels = "auto"
 )
 
 ggsave("outputs/species_level_forest_plots.png", width = 9, height = 9)
@@ -1162,7 +1314,6 @@ glm.com.nohedera <-
 
 # community level odds ratios without Hedera helix
 
-
 ci.all0.nohedera <-
   or_glm(data = df.vrst.nohedera, model = glm.com.nohedera, incr = increments)
 
@@ -1189,48 +1340,25 @@ ci.all.nohedera$variable <-
 
 
 
-## exploration of appetence and richness variables -----------------------------
 
-# plots with Fraxinus, Rubus, Vaccinium
-plots.frax <- rownames(pres.wide1)[which(pres.wide1$`Fraxinus excelsior` > 0)]
-plots.rubus <- rownames(pres.wide1)[which(pres.wide1$`Rubus sp` > 0)]
-plots.vaccinium <- rownames(pres.wide1)[which(pres.wide1$`Vaccinium sp` > 0)]
 
-# link avec covariables
-df.check <- df.vrst
-df.check$index <- paste(df.vrst$Numero.placette,df.vrst$Annee,sep="_")
+## compute percents of deviance explained
 
-df.check$is.fraxinus <- 0
-df.check[which(df.check$index %in% plots.frax),"is.fraxinus"] <- 1
+dev.expl.glm.sp <- NULL
 
-df.check$is.rubus <- 0
-df.check[which(df.check$index %in% plots.rubus),"is.rubus"] <- 1
+for (i in 1:length(glm.sp.list)){
+  
+  glm.tp <- get(glm.sp.list[i])
+  
+  nd <- glm.tp$null.deviance
+  de <- glm.tp$deviance
+  
+  exp.dev <- 100*(nd - de) / nd
+  
+  dev.expl.glm.sp <- c(dev.expl.glm.sp, exp.dev)
 
-df.check$is.vaccinium <- 0
-df.check[which(df.check$index %in% plots.vaccinium),"is.vaccinium"] <- 1
+}
 
-p.frax.rs <- ggplot(df.check)+
-  aes(x = factor(df.check$is.fraxinus), y = Lpresence)+
-  geom_boxplot()
+names(dev.expl.glm.sp) <- names(glm.sp.list)
 
-p.frax.app <- ggplot(df.check)+
-  aes(x = factor(df.check$is.fraxinus), y = Appetence_mean)+
-  geom_boxplot()
 
-p.rub.rs <- ggplot(df.check)+
-  aes(x = factor(df.check$is.rubus), y = Lpresence)+
-  geom_boxplot()
-
-p.rub.app <- ggplot(df.check)+
-  aes(x = factor(df.check$is.rubus), y = Appetence_mean)+
-  geom_boxplot()
-
-p.vac.rs <- ggplot(df.check)+
-  aes(x = factor(df.check$is.vaccinium), y = Lpresence)+
-  geom_boxplot()
-
-p.vac.app <- ggplot(df.check)+
-  aes(x = factor(df.check$is.vaccinium), y = Appetence_mean)+
-  geom_boxplot()
-
-(p.frax.rs + p.frax.app) / (p.rub.rs + p.rub.app) / (p.vac.rs + p.vac.app)
