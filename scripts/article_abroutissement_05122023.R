@@ -1155,11 +1155,17 @@ plot_zone <- ggplot(data=or.zone.sp, aes(y=n_species, x=odds, xmin=lower, xmax=u
 # has to be combined with the first part of figure 2 above
 # order plots as in the plot level analysis
 
-
-
 names(glm.sp.list) <- levels(abr.data5$Nom_Latin)
 coef.plot.level <- names(rev(sort(coef(abrbin.glob.lm)[2:10])))
-
+labs.variables <- c("log(Species richness)",
+                    "Appetency",
+                    "Years",
+                    "Elevation",
+                    "log(Shots)",
+                    "Distance",
+                    "Rugosity",
+                    "Visibility",
+                    "Northness")
 
 for (i in 1:length(glm.sp.list)){
   
@@ -1171,10 +1177,11 @@ pos.coefs <- match( coef.plot.level,sc.coefs.lm)
 if(i %in%c(1,2,4,5,7,8,10)){
 assign(paste("sp_forplot",i,sep="_"),plot_model(
   glm.tp,
+  order.terms = pos.coefs,
   terms = coef.plot.level,
   colors = "viridis",
   sort.est = F,
-  order.terms = pos.coefs,
+ 
   transform = NULL,
   axis.labels = rep(" ",9),
   axis.lim = c(-2,2)
@@ -1188,6 +1195,7 @@ assign(paste("sp_forplot",i,sep="_"),plot_model(
 )
 } else {
   
+     
   assign(paste("sp_forplot",i,sep="_"),plot_model(
     glm.tp,
     terms = coef.plot.level,
@@ -1202,15 +1210,7 @@ assign(paste("sp_forplot",i,sep="_"),plot_model(
                linetype = "dashed",
                col = "goldenrod3") +
     labs(x = "Variables", y = "Estimates - 95%CI", title = names(glm.sp.list)[i])+
-    scale_x_discrete(labels=c("log(Species richness)",
-      "Appetency",
-      "Years",
-      "Elevation",
-      "log(Shots)",
-      "Distance",
-      "Rugosity",
-      "Visibility",
-      "Northness"))
+    scale_x_discrete(labels=rev(labs.variables))
   )
 }
 
