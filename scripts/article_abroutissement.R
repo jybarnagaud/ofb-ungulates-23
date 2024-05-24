@@ -1,7 +1,7 @@
 #--------------------------------------------------#
 ####### R script for Gaudry et al. [TITLE] #########
 # contact : william.gaudry@ofb.gouv.fr
-# last modified : 5/12/2023
+# last modified : 24/05/2024
 # replicates the analyses presented in the paper and 
 # performs some additional technical checks.
 #--------------------------------------------------#
@@ -14,10 +14,8 @@
 
 ### for figures : !!! homogenize scales within figures!!!
 
+## libraries -------------------------------------------------------------------
 
-#---------------------------#
-#### necessary libraries ####
-#---------------------------#
 
 library(ade4)
 library(PerformanceAnalytics)
@@ -39,16 +37,15 @@ library(spdep)
 library(mgcViz)
 library(sjPlot)
 library(oddsratio)
-library(DHARMa) ## MAT - présent deux fois
+library(colorspace) 
 
 #------------#
-#### Data ####
-#------------#
+## DATA ------------------------------------------------------------------------
 
 # all data (extracted by Mathieu Garel - OFB : september 2023). Browsing is 
 # 1 (browsed) or 0 (not browsed) for each plot - year
 
-load("data/pour_jy_will.Rdata") ## MAT - pour le coup il faut que le data soit dans le même dossier que script et c'est Rdata pas RData - corrigé ici pour moi
+load("data/pour_jy_will.Rdata") 
 abr <- data
 
 # data for species-level analyses (extracted by Colombe Lefort - OFB : july 2023)
@@ -68,6 +65,8 @@ variable.names <- c("Species richness (log-transformed)",
   "Rugosity (relative index)",
   "Visibility (unit???)",
   "Northness (relative index)")
+
+## PREPARE DATA ================================================================
 
 ## prepare spatial data  -------------------------------------------------------
 
@@ -136,10 +135,6 @@ colnames(abr.data1) = c("Nom_Latin","Annee","Numero.placette","Presence","Consom
 abr.data <- subset(abr.data1,Numero.placette %in% unique(abr$Numero.placette))
 abr.data$index <- paste(abr.data$Numero.placette,abr.data$Annee,sep="_")
 
-#-----------------------------#
-#### Prepare presence data ####
-#-----------------------------#
-
 ## Presence matrix (to retrieve absences) --------------------------------------
 
 pres.long <- abr.data[,c("Presence","index","Nom_Latin")]
@@ -183,9 +178,7 @@ abr.sum <- apply(abr.wide1,1,sum)
 abr2 <- abr.sum
 abr2[abr2>0] <- 1
 
-#--------------------------#
-#### Explore covariates ####
-#--------------------------#
+## EXPLORE COVARIATES ----------------------------------------------------------
 
 ## correlations among spatial variables ----------------------------------------
 
@@ -211,9 +204,10 @@ spat.data3 <- spat.data3[unique(as.character(plots.id)),]
 chart.Correlation(spat.data3[,-c(1:2,ncol(spat.data3))])
 
 ## PCA on the subset of variables kept -----------------------------------------
-## MAT - pas tout à fait puisque la variable strava est conservée ici alors qu'elle a sauté dans la suite des analyses (étant j'imagine trop corrélée à la northness)
 
-pca.spat.data3 <- dudi.pca(spat.data3[,-c(1,2,ncol(spat.data3))],scannf=F,nf=3)
+# note : strava is removed due to its very strong triangular relation with dist.linear
+
+pca.spat.data3 <- dudi.pca(spat.data3[,-c(1,2,8,ncol(spat.data3))],scannf=F,nf=3)
 
 screeplot(pca.spat.data3)
 s.corcircle(pca.spat.data3$co)
@@ -221,9 +215,7 @@ s.corcircle(pca.spat.data3$co,xax = 1, yax = 3)
 s.label(pca.spat.data3$li)
 s.class(pca.spat.data3$li,fac=factor(spat.data3$Massif))
 
-#-----------------------------#
-#### Community level model ####
-#-----------------------------#
+## COMMUNITY-LEVEL MODEL =======================================================
 
 ## Prepare community-level data ------------------------------------------------
 
@@ -287,13 +279,14 @@ barplot(table(df.vrst$Bois))
 hist(log(df.vrst$dist.linear+1))
 hist(log(df.vrst$Tirs+1))
 hist((df.vrst$vis.buff))
-## MAT - manque dans les histo celui de presence (richness?)
+hist((df.vrst$presence))
 
 # regularization (log transform)
 
 df.vrst$Ldist.linear <- log(df.vrst$dist.linear+1)
 df.vrst$LTirs <- log(df.vrst$Tirs+1)
 df.vrst$Lpresence <- log(df.vrst$presence)
+df.vrst$Lvrm.buff <- log(df.vrst$vrm.buff)
 
 # stand type as a factor
 
@@ -325,7 +318,7 @@ all.descr$prop.brows = 100 * all.descr$n.brows / all.descr$n.plot
 
 # do the plot : variation per year
 
-supp.labs <- c("(b) Hautes Bauges", "(c) Semnoz", "(d) Cimeteret") ## MAT - pourquoi b ,c, d ? pas nécessaire à mon avis
+supp.labs <- c("(b) Hautes Bauges", "(c) Semnoz", "(d) Cimeteret") 
 names(supp.labs) <- c("HAUTES BAUGES", "SEMNOZ", "SW BAUGES")
 
 descr.curves <- ggplot(all.descr) +
@@ -342,10 +335,11 @@ descr.curves <- ggplot(all.descr) +
       fill = NA,
       linewidth = 1 ## MAT - changé size par linewidth
     ),
-    plot.title = element_text(hjust = 0.5) # MAT - j'ai ajouté cette ligne
+    plot.title = element_text(hjust = 0.5) 
   ) +
     labs(x = "Years", y = "Proportion of browsed plots (%)") +
-  ggtitle("(b) Temporal variation in browsing pressure") # MAT - j'ai ajouté cette légende
+  ggtitle("(b) Temporal variation in browsing pressure") 
+
 # boxplot : variation between regions
 
 descr.regions <- ggplot(all.descr) +
@@ -366,7 +360,7 @@ descr.regions <- ggplot(all.descr) +
     panel.border = element_rect(
       color = "black",
       fill = NA,
-      linewidth = 1 ## MAT - changé size par linewidth
+      linewidth = 1 
     ),
     plot.title = element_text(hjust = 0.5)
   ) +
@@ -374,7 +368,7 @@ descr.regions <- ggplot(all.descr) +
     
 # both
 
-combined_plot <- descr.regions + descr.curves 
+combined_plot <- descr.regions / descr.curves 
 combined_plot
 
 ggsave("outputs/curves_prop_brows.png", width = 12, height = 6 )
@@ -387,12 +381,12 @@ abrbin.glob.gam <-
   gam(
     conso.bin ~ s(elev.buff, k = k) + 
       s(northness.buff, k = k) +
-      s(vrm.buff, k = k) + 
+      s(Lvrm.buff, k = k) + 
       s(Ldist.linear, k = k) + 
       s(LTirs, k = k) + 
       s(Appetence_mean, k = k) + 
       s(vis.buff,k = k)+
-      s(Annee, k = k) + ## MAT - on voit bien au-dessus que l'effet année est site spécifique
+      s(Annee, k = k) + 
       s(Lpresence, k = k)+
      Bois + 
       Massif ,
@@ -404,13 +398,36 @@ abrbin.glob.gam <-
 gam.check(abrbin.glob.gam)
 summary(abrbin.glob.gam)
 
+## Generalized Additive Model with site-specific responses ---------------------
+
+abrbin.glob.site.gam <-
+  gam(
+    conso.bin ~ s(elev.buff, k = k,by = Massif) + 
+      s(northness.buff, k = k,by = Massif) +
+      s(Lvrm.buff, k = k,by = Massif) + 
+      s(Ldist.linear, k = k,by = Massif) + 
+      s(LTirs, k = k,by = Massif) + 
+      s(Appetence_mean, k = k,by = Massif) + 
+      s(vis.buff,k = k,by = Massif)+
+      s(Annee, k = k,by = Massif) + 
+      s(Lpresence, k = k,by = Massif)+
+      Bois + 
+      Massif ,
+    family = binomial,
+    data = df.vrst
+  )
+
+# check GAM residuals 
+gam.check(abrbin.glob.site.gam)
+summary(abrbin.glob.site.gam)
+
 ## Generalized Linear Model on scaled variables --------------------------------
 
 abrbin.glob.lm <-
   glm(
     conso.bin ~ scale(elev.buff) + 
       scale(northness.buff) +
-      scale(vrm.buff) + 
+      scale(Lvrm.buff) + 
       scale(Ldist.linear) + 
       scale(LTirs) + 
       scale(Appetence_mean) + 
@@ -429,7 +446,7 @@ abrbin.nosc.glob.lm <-
   glm(
     conso.bin ~ elev.buff + 
       northness.buff +
-      vrm.buff + 
+      Lvrm.buff + 
       Ldist.linear + 
       LTirs + 
       Appetence_mean + 
@@ -479,7 +496,8 @@ resid.gam.xy <-
 colnames(resid.gam.xy)[c(1, 2)] <-
   c("Numero.placette", "residuals.gam")
 
-## MAT - sous linux besoind e définir le browser en amont avec la commande : options(browser = 'firefox')
+# note : to use mapview, linux users will have to define the web browser ahead : options(browser = 'firefox')
+
 mapView(
   resid.gam.xy,
   xcol = "Long",
@@ -517,7 +535,7 @@ increments <-
   list(
     elev.buff = 100,
     northness.buff =  0.25,
-    vrm.buff = 0.0005,
+    Lvrm.buff = -7.6,
     Ldist.linear = log(100),
     LTirs = log(4),
     Appetence_mean = 0.5,
@@ -539,7 +557,7 @@ ci.all$variable <-
   c(
     "elev",
     "northness",
-    "vrm",
+    "lvrm",
     "ldist.lin",
     "ltirs",
     "app_mean",
@@ -579,7 +597,7 @@ fp.comm <- plot_model(
       c(
         "Northness",
         "Visibility",
-        "Rugosity",
+        "log(Rugosity)",
         "Distance",
         "log(Shots)",
         "Elevation",
@@ -611,8 +629,6 @@ fp.comm.nosc <- plot_model(
 
 fp.comm.nosc
 ggsave("outputs/fit_scaled_global_nosc.png",height=8,width=4)
-## MAT - vu l'effet de VRM plaide pour moi de log cette variable aussi comme pour tir et distance et présence
-
  
 ## Partial residuals plots of GAM models = [FIGURE 3]--------------------------
 
@@ -679,17 +695,13 @@ ggsave("outputs/fit_scaled_global_nosc.png",height=8,width=4)
    labels = "auto"
  )
 
-## MAT - pour visibilité l'unité est un nombre de pixels visibles à une hauteur de 1m depuis un observateur placé sur la placette et qui ferait lui aussi 1m le tout dans un rayon de 350m et pour une taille de pixels de 3.3m (le dem) soit un nombre max de pixels visibles autour de 34 600.
 
  ggsave("outputs/fit_gam_global.png",
         height = 9,
         width = 9)
 
+## MULTISPECIES COMPARATIVE ANALYSIS ===========================================
 
-#------------------------------------------#
-#### Multi-species comparative analysis ####
-#------------------------------------------#
- 
 ## prepare data ----------------------------------------------------------------
 
 # add community-level browsing to the data table
@@ -726,7 +738,7 @@ p1 <- ggplot(prop.abr)+
   geom_boxplot(fill = "gray90", alpha = 0.5)+
   theme_classic()+
   labs(x = "Species", y = "% browsed plots per year")+ 
-  theme(axis.text.x = element_text(face = "italic", angle = 90)) # MAT - en italique
+  theme(axis.text.x = element_text(face = "italic", angle = 90))
 
 p2 <- ggplot(prop.abr)+
   aes(x = Annee, y = freq.abr)+
@@ -737,11 +749,11 @@ p2 <- ggplot(prop.abr)+
   theme_classic() +
   theme(
     strip.background = element_blank() ,
-    strip.text = element_text(face = "bold.italic", size = 12),  # MAT - en italique
+    strip.text = element_text(face = "bold.italic", size = 12), 
     panel.border = element_rect(
       color = "black",
       fill = NA,
-      size = 1
+      linewidth = 1
     )
   )
 
@@ -765,7 +777,7 @@ coefs.trend <- summary(glm.trend)$coefficients
 pval.over <- testDispersion(glm.trend)$p.value
 
 df.sp.trends <- rbind(df.sp.trends,c(coefs.trend[2,],pval.over))
-#Sys.sleep(2)     ## MAT - pour que l'on est le temps de voir défiler
+#Sys.sleep(2)    
 
 }
 colnames(df.sp.trends) <- c("trend","se.trend","z.trend","pval.trend","overdisp.trend")
@@ -777,7 +789,6 @@ tp.trend.aa <- subset(prop.abr, Nom_Latin == "Abies alba")
 off.trend.aa <- log(tp.trend.aa$Presence)
 glm.trend.aa <- glm(Consommation ~ Annee, offset = off.trend.aa,data = tp.trend.aa, family = poisson)
 summary(glm.trend.aa)
-## MAT - probablement des effets aussi sites spécfiques sur cette variable année vu les différences hautes-bauges vs les deux autres sites
 
 ## multi-species mixed GAM (not used in the article) ---------------------------
 
@@ -804,7 +815,7 @@ abr.data5$Numero.placette <- factor(abr.data5$Numero.placette)
   "gamm(
     Consommation ~ s(elev.buff, k = k, by = Nom_Latin) + 
       s(northness.buff, k = k, by = Nom_Latin) +
-      s(vrm.buff, k = k, by = Nom_Latin) + 
+      s(Lvrm.buff, k = k, by = Nom_Latin) + 
       s(Ldist.linear, k = k, by = Nom_Latin) + 
       s(LTirs, k = k, by = Nom_Latin) + 
       s(Appetence_mean, k = k, by = Nom_Latin) + 
@@ -828,9 +839,9 @@ abr.data5$Numero.placette <- factor(abr.data5$Numero.placette)
 
 # this loop runs models and store results
 
-for(i in 1:nlevels(abr.data5$Nom_Latin)){ # MAT - pourquoi ne simplement pas "looper" sur levels(abr.data5$Nom_Latin)
+for(i in 1:nlevels(abr.data5$Nom_Latin)){ 
 
-sgp <- levels(abr.data5$Nom_Latin)[i]
+sp <- levels(abr.data5$Nom_Latin)[i]
 
 sub.sp <- subset(abr.data5,Nom_Latin == sp)
 
@@ -842,7 +853,7 @@ assign(nm.sp,
  gam(
   Consommation ~ s(elev.buff, k = k) + 
     s(northness.buff, k = k) +
-    s(vrm.buff, k = k) + 
+    s(Lvrm.buff, k = k) + 
     s(Ldist.linear, k = k) + 
     s(LTirs, k = k) + 
     s(Appetence_mean, k = k) + 
@@ -865,7 +876,7 @@ assign(nm2.sp,
        glm(
          Consommation ~ scale(elev.buff) + 
            scale(northness.buff) +
-           scale(vrm.buff) + 
+           scale(Lvrm.buff) + 
            scale(Ldist.linear) + 
            scale(LTirs) + 
            scale(Appetence_mean) +
@@ -885,7 +896,7 @@ assign(nm2.nosc.sp,
        glm(
          Consommation ~ elev.buff + 
            northness.buff +
-           vrm.buff + 
+           Lvrm.buff + 
            Ldist.linear + 
            LTirs + 
            Appetence_mean + 
@@ -925,7 +936,7 @@ comp.sp.all <-
     smooths = c(
       "s(elev.buff)",
       "s(northness.buff)",
-      "s(vrm.buff)",
+      "s(Lvrm.buff)",
       "s(Ldist.linear)",
       "s(LTirs)",
       "s(Appetence_mean)",
@@ -940,16 +951,13 @@ comp.sp.all <-
 # the order of levels in the "model" variable is forced, otherwise unnest reorders randomly... 
 
 comp.sp.all.df <- unnest(comp.sp.all,cols="data")
-comp.sp.all.df$model <- factor(comp.sp.all.df$.model , levels = unique(comp.sp.all.df$.model)) ## MAT - j'ai du corriger ici par .model
+comp.sp.all.df$model <- factor(comp.sp.all.df$model , levels = unique(comp.sp.all.df$model)) 
                                
-                                
-library(colorspace) ## MAT - à basculer en début de script
 q10 <- qualitative_hcl(10, "Dark2")
 names.q10 <- levels(abr.data5$Nom_Latin)
 
-## MAT - dans toute la suite des ggplot j'ai changé y = est par y = .estimate
 p.gam.ele <- ggplot(comp.sp.all.df) +
-  aes(x = elev.buff, y = .estimate, col = model) +
+  aes(x = elev.buff, y = est, col = model) +
   scale_color_manual(values = q10, labels = names.q10) +
   geom_line(linewidth = 2) +
   theme_classic() +
@@ -957,25 +965,24 @@ p.gam.ele <- ggplot(comp.sp.all.df) +
          "") 
 
 p.gam.north <- ggplot(comp.sp.all.df) +
-  aes(x = northness.buff, y = .estimate, col = model) +
+  aes(x = northness.buff, y = est, col = model) +
   scale_color_viridis_d(labels = levels(abr.data5$Nom_Latin)) +
   geom_line() +
   theme_classic() +
   ylim(-1,3) + 
   labs(x = "Northness (relative unit)", y = "Scaled marginal effect", title =
          "")
-  
 p.gam.vrm <- ggplot(comp.sp.all.df) +
-  aes(x = vrm.buff, y = .estimate, col = model) +
+  aes(x = Lvrm.buff, y = est, col = model) +
   scale_color_viridis_d(labels = levels(abr.data5$Nom_Latin)) +
   geom_line() +
   theme_classic() +
   ylim(-1,2) +
-labs(x = "Rugosity (relative unit)", y = "Scaled marginal effect", title =
+labs(x = "Rugosity (log(relative unit))", y = "Scaled marginal effect", title =
          "")
   
 p.gam.lin <- ggplot(comp.sp.all.df) +
-  aes(x = Ldist.linear, y = .estimate, col = model) +
+  aes(x = Ldist.linear, y = est, col = model) +
   scale_color_viridis_d(labels = levels(abr.data5$Nom_Latin)) +
   geom_line() +
   theme_classic() +
@@ -984,7 +991,7 @@ p.gam.lin <- ggplot(comp.sp.all.df) +
          "")
 
 p.gam.tirs <- ggplot(comp.sp.all.df) +
-  aes(x = LTirs, y = .estimate, col = model) +
+  aes(x = LTirs, y = est, col = model) +
   scale_color_viridis_d(labels = levels(abr.data5$Nom_Latin)) +
   geom_line() +
   theme_classic() +
@@ -993,7 +1000,7 @@ p.gam.tirs <- ggplot(comp.sp.all.df) +
          "")
 
 p.gam.app <- ggplot(comp.sp.all.df) +
-  aes(x = Appetence_mean, y = .estimate, col = model) +
+  aes(x = Appetence_mean, y = est, col = model) +
   scale_color_viridis_d(labels = levels(abr.data5$Nom_Latin)) +
   geom_line() +
   theme_classic() +
@@ -1002,7 +1009,7 @@ p.gam.app <- ggplot(comp.sp.all.df) +
          "") 
 
 p.gam.vis <- ggplot(comp.sp.all.df) +
-  aes(x = vis.buff, y = .estimate, col = model) +
+  aes(x = vis.buff, y = est, col = model) +
   scale_color_viridis_d(labels = levels(abr.data5$Nom_Latin)) +
   geom_line() +
   theme_classic() +
@@ -1011,7 +1018,7 @@ p.gam.vis <- ggplot(comp.sp.all.df) +
          "") 
 
 p.gam.an <- ggplot(comp.sp.all.df) +
-  aes(x = Annee, y = .estimate, col = model) +
+  aes(x = Annee, y = est, col = model) +
   scale_color_viridis_d(labels = levels(abr.data5$Nom_Latin)) +
   geom_line() +
   theme_classic() +
@@ -1020,7 +1027,7 @@ p.gam.an <- ggplot(comp.sp.all.df) +
          "")
 
 p.gam.sr <- ggplot(comp.sp.all.df) +
-  aes(x = Lpresence, y = .estimate, col = model) +
+  aes(x = Lpresence, y = est, col = model) +
   scale_color_viridis_d(labels = levels(abr.data5$Nom_Latin)) +
   geom_line() +
   theme_classic() +
@@ -1073,7 +1080,7 @@ ci.sp$variable <-
   c(
     "elev",
     "northness",
-    "vrm",
+    "lvrm",
     "ldist.lin",
     "ltirs",
     "app_mean",
@@ -1094,8 +1101,8 @@ ci.sp.all <- rbind(or.glm,ci.all)
 
 # plots odds ratios as a forest plot
 
-varinames <- data.frame(names = c("elev","northness","vrm","ldist.lin","ltirs","app_mean","annee","sr"),
-varilabs = c("Elevation (m)","Northness (relative unit","Rugosity (relative unit)","Distance to nearest linear element (log(m))","Number of hunting shots (log)","Mean attractivity (scores)","Years","Species richness")
+varinames <- data.frame(names = c("elev","northness","lvrm","ldist.lin","ltirs","app_mean","annee","sr"),
+varilabs = c("Elevation (m)","Northness (relative unit","Rugosity (log(relative unit))","Distance to nearest linear element (log(m))","Number of hunting shots (log)","Mean attractivity (scores)","Years","Species richness")
 )
 
 for(i in 1:nrow(varinames)){
@@ -1173,7 +1180,7 @@ labs.variables <- c("log(Species richness)",
                     "Elevation",
                     "log(Shots)",
                     "Distance",
-                    "Rugosity",
+                    "log(Rugosity)",
                     "Visibility",
                     "Northness")
 
@@ -1197,7 +1204,7 @@ assign(paste("sp_forplot",i,sep="_"),plot_model(
   axis.lim = c(-2,2)
 ) +
 theme_classic() +
-theme(plot.title = element_text(face = "italic")) +## MAT - j'ai mis en italique
+theme(plot.title = element_text(face = "italic")) +
   geom_hline(yintercept = 0,
              linetype = "dashed",
              col = "goldenrod3") +
@@ -1218,7 +1225,7 @@ labs(x = "", y = "Estimates - 95%CI", title = names(glm.sp.list)[i])
     axis.lim = c(-2,2)
     ) +
     theme_classic() +
-        theme(plot.title = element_text(face = "italic")) + ## MAT - j'ai mis en italique
+        theme(plot.title = element_text(face = "italic")) + 
     geom_hline(yintercept = 0,
                linetype = "dashed",
                col = "goldenrod3") +
@@ -1302,6 +1309,7 @@ df.vrst.nohedera[which(df.vrst.nohedera$conso.bin > 0),"conso.bin"] <- 1
 df.vrst.nohedera$Ldist.linear <- log(df.vrst.nohedera$dist.linear+1)
 df.vrst.nohedera$LTirs <- log(df.vrst.nohedera$Tirs+1)
 df.vrst.nohedera$Lpresence <- log(df.vrst.nohedera$presence)
+df.vrst.nohedera$Lvrm.buff <- log(df.vrst.nohedera$vrm.buff)
 
 
 # redo the community-level GLM without Hedera helix in the community
@@ -1312,7 +1320,7 @@ glm.com.nohedera <-
   glm(
     conso.bin ~ elev.buff + 
       northness.buff +
-      vrm.buff + 
+      Lvrm.buff + 
       Ldist.linear + 
       LTirs + 
       Appetence_mean + 
@@ -1350,10 +1358,6 @@ ci.all.nohedera$variable <-
     "Semnoz",
     "SW Bauges"
   )
-
-
-
-
 
 ## compute percents of deviance explained
 
