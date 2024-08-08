@@ -1,7 +1,7 @@
 #--------------------------------------------------#
 ####### R script for Gaudry et al. [TITLE] #########
 # contact : william.gaudry@ofb.gouv.fr
-# last modified : 24/05/2024
+# last modified : 08/08/2024
 # replicates the analyses presented in the paper and 
 # performs some additional technical checks.
 #--------------------------------------------------#
@@ -264,6 +264,38 @@ df.vrst <- as.data.frame(df.vrst0)
 df.vrst$Massif <- factor(df.vrst$Massif)
 df.vrst$Bois <- factor(df.vrst$Bois)
 
+## Figure 1 : export for qGis mapping ------------------------------------------
+
+# the maps from fig. 1 itself are compiled in qGIS. geographic data sources:
+
+# extent of forests in fig. c-d-e : https://geoservices.ign.fr/bdforet (accessed 08/08/2024)
+# Bauges Regional Nature Park : https://www.data.gouv.fr/fr/datasets/parcs-naturels-regionaux-de-france-au-15-septembre-2021-58-pnr/ (accessed 08/08/2024)
+# cities : https://www.data.gouv.fr/fr/datasets/villes-de-france/ (accessed 08/08/2024)
+# the shapefile for the extent of continental France is a standard low resolution, unvalidated polygon
+
+# compute number of sampling years / plot and time range
+
+
+dur.plot <-
+  aggregate(df.vrst$Annee,
+            by = list(df.vrst$Numero.placette),
+            FUN = "length")
+
+yrange.plot <-
+  aggregate(df.vrst$Annee,
+            by = list(df.vrst$Numero.placette),
+            FUN = range)
+
+yrange.plot<-data.frame(yrange.plot$Group.1,unlist(yrange.plot$x))
+
+
+ytime <- merge(dur.plot,yrange.plot, by = 1)
+colnames(ytime) <- c("Numero.placette","duration","min.year","max.year")
+
+ymap <- merge(ytime,spat.data3,by = "Numero.placette",all = F)
+ymap.sf <- st_as_sf(ymap)
+st_write(ymap.sf, dsn = "outputs/fig1_map.geojson", layer = "nc.geojson")
+
 ## explanatory variables  ------------------------------------------------------
 
 # check distributions
@@ -297,7 +329,7 @@ df.vrst$Bois <- factor(df.vrst$Bois)
 df.vrst$conso.bin <- df.vrst$conso
 df.vrst[which(df.vrst$conso.bin > 0),"conso.bin"] <- 1
 
-## Descriptive figure of browsing pressure -------------------------------------
+## Figure 2 : descriptive figure of browsing pressure --------------------------
 
 descr.dat <-
   aggregate(df.vrst$conso.bin,
@@ -318,35 +350,18 @@ all.descr$prop.brows = 100 * all.descr$n.brows / all.descr$n.plot
 
 # do the plot : variation per year
 
-supp.labs <- c("(b) Hautes Bauges", "(c) Semnoz", "(d) Cimeteret") 
-names(supp.labs) <- c("HAUTES BAUGES", "SEMNOZ", "SW BAUGES")
 
-descr.curves <- ggplot(all.descr) +
-  aes(x = year, y = prop.brows) +
-  geom_line() +
-  geom_point() +
-  facet_wrap( ~ massif, labeller = labeller(massif = supp.labs)) +
-  theme_classic() +
-  theme(
-    strip.background = element_blank() ,
-    strip.text = element_text(face = "bold", size = 12),
-    panel.border = element_rect(
-      color = "black",
-      fill = NA,
-      linewidth = 1 ## MAT - changé size par linewidth
-    ),
-    plot.title = element_text(hjust = 0.5) 
-  ) +
-    labs(x = "Years", y = "Proportion of browsed plots (%)") +
-  ggtitle("(b) Temporal variation in browsing pressure") 
+all.descr$massif <- factor(all.descr$massif,levels = c("SEMNOZ","SW BAUGES","HAUTES BAUGES"))
 
 # boxplot : variation between regions
 
-descr.regions <- ggplot(all.descr) +
+f2a <- ggplot(all.descr) +
   aes(x = massif, y = prop.brows) +
-  geom_boxplot(fill = "gray90") +
+  geom_boxplot(aes(fill = massif),alpha = 0.4) +
+  scale_fill_manual(values = c('#46327e', '#1fa187', 'goldenrod'),name = "cluster", labels = c("Semnoz","Cimeteret","Hautes Bauges"))+
+  ylim(0,100)+
   theme_classic() +
-  labs(x = "Cluster", y = "Proportion of browsed plots (%)") +
+  labs(x = "", y = "browsed plots (% per year)") +
   scale_x_discrete(
     labels = c(
       "HAUTES BAUGES" = "Hautes Bauges",
@@ -357,21 +372,123 @@ descr.regions <- ggplot(all.descr) +
   theme(
     strip.background = element_blank() ,
     strip.text = element_text(face = "bold", size = 12),
-    panel.border = element_rect(
-      color = "black",
-      fill = NA,
-      linewidth = 1 
-    ),
     plot.title = element_text(hjust = 0.5)
   ) +
-  ggtitle("(a) Regional variation in browsing pressure")
-    
-# both
+  guides(fill="none")
 
-combined_plot <- descr.regions / descr.curves 
-combined_plot
+# curves : variations within regions
 
-ggsave("outputs/curves_prop_brows.png", width = 12, height = 6 )
+f2b <- ggplot(all.descr) +
+  aes(x = year, y = prop.brows, group = massif) +
+  geom_line(aes(color = massif)) +
+  geom_point(aes(color = massif)) +
+  scale_color_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(
+    strip.background = element_blank() ,
+    strip.text = element_text(face = "bold", size = 12),
+    plot.title = element_text(face = "bold", size = 12,hjust = 0)
+  ) +
+  labs(title = "a",x = "", y = "browsed plots (% per year)")
+
+# all
+#combined_plot <- (f2a / f2b)+
+ # plot_annotation(tag_levels = "a",
+  #                theme = theme(plot.title = element_text(size = 12, face = "bold")))
+
+#ggsave("outputs/box_curves_prop_brows.svg",width = 1750,height = 2500,units = "px")
+
+# only curves (current version in article)
+
+#f2b
+#ggsave("outputs/curves_prop_brows.svg",width = 1500,height = 1000,units = "px")
+
+
+## Figure 3 : descriptive trends per species -----------------------------------
+
+# add community-level browsing to the data table
+
+com.conso <-
+  as.data.frame(df.vrst[, c("Numero.placette", "Annee", "conso.bin")])
+
+abr.data2b <- merge(abr.data2,com.conso,by = c("Numero.placette","Annee"))
+
+# select the 10 most common species (highest number of occurrences)
+
+rank.sp <- rev(sort(tapply(abr.data2b$Presence,INDEX = abr.data2b$Nom_Latin,FUN = "sum")))
+
+sp.keep <- names(rank.sp[1:10])
+
+# keep only the 10 most common species and plots with at least 1 grazed species
+
+abr.data3 <- subset(abr.data2b,Nom_Latin %in% sp.keep & conso.bin == 1)
+
+# proportion of browsed sites per species
+
+prop.abr <- aggregate(abr.data3[,c("Presence","Consommation")],by=list(abr.data3$Nom_Latin,abr.data3$Annee),FUN="sum")
+colnames(prop.abr)[c(1,2)] <- c("Nom_Latin","Annee")
+
+prop.abr$freq.abr <- 100 * (prop.abr$Consommation / prop.abr$Presence)
+
+# median proportion of browsed plots per species
+
+med.per.sp <- tapply(prop.abr$freq.abr,INDEX = prop.abr$Nom_Latin, FUN = "median")
+sort(med.per.sp)
+
+# distributions of yearly browsing pressures per species (not displayed in article)
+
+p1 <- ggplot(prop.abr)+
+  aes(x = reorder(Nom_Latin,freq.abr,median),  y = freq.abr)+
+  geom_boxplot(fill = "gray90", alpha = 0.5)+
+  theme_classic()+
+  labs(x = "Species", y = "% browsed plots per year")+ 
+  theme(axis.text.x = element_text(face = "italic", angle = 90))
+
+# curves of yearly browsing pressures per species 
+
+prop.abr$Nom_Latin <- reorder(prop.abr$Nom_Latin,prop.abr$freq.abr,median)
+labs.sp.yr <- paste(letters[2:(nlevels(prop.abr$Nom_Latin)+1)],levels(prop.abr$Nom_Latin),sep = " - ")
+names(labs.sp.yr) <- levels(prop.abr$Nom_Latin)
+
+
+p2b <- ggplot(prop.abr)+
+  aes(x = Annee, y = freq.abr)+
+  geom_line()+
+  theme_classic()+
+  labs(x = "", y = "% browsed plots")+
+  facet_wrap(~Nom_Latin,nrow = 4,scales = "free",labeller = as_labeller(labs.sp.yr))+
+  theme_classic() +
+  theme(
+    strip.background = element_blank() ,
+    strip.text = element_text(face = "bold", size = 12,hjust=0)
+    )+
+  ylim(0,100)
+
+f2b + p2b
+
+layout <- "
+AAA
+AAA
+AAA
+CCC
+CCC
+CCC
+CCC
+"
+(f2b / p2b) + 
+  plot_layout(design = layout)
+
+ggsave(
+  "outputs/gaudry_et_al_fig2.svg",
+  width = 2500,
+  height = 4000,
+  units = "px"
+)
 
 ## Generalized Additive Model --------------------------------------------------
 
@@ -702,65 +819,6 @@ ggsave("outputs/fit_scaled_global_nosc.png",height=8,width=4)
 
 ## MULTISPECIES COMPARATIVE ANALYSIS ===========================================
 
-## prepare data ----------------------------------------------------------------
-
-# add community-level browsing to the data table
-
-com.conso <-
-   as.data.frame(df.vrst[, c("Numero.placette", "Annee", "conso.bin")])
-
-abr.data2b <- merge(abr.data2,com.conso,by = c("Numero.placette","Annee"))
-
-# select the 10 most common species (highest number of occurrences)
- 
-rank.sp <- rev(sort(tapply(abr.data2b$Presence,INDEX = abr.data2b$Nom_Latin,FUN = "sum")))
-
-sp.keep <- names(rank.sp[1:10])
-
-# keep only the 10 most common species and plots with at least 1 grazed species
-
-abr.data3 <- subset(abr.data2b,Nom_Latin %in% sp.keep & conso.bin == 1)
-
-# proportion of browsed sites per species
-
-prop.abr <- aggregate(abr.data3[,c("Presence","Consommation")],by=list(abr.data3$Nom_Latin,abr.data3$Annee),FUN="sum")
-colnames(prop.abr)[c(1,2)] <- c("Nom_Latin","Annee")
-
-prop.abr$freq.abr <- 100 * (prop.abr$Consommation / prop.abr$Presence)
-
-## graphical displays ----------------------------------------------------------
-
-med.per.sp <- tapply(prop.abr$freq.abr,INDEX = prop.abr$Nom_Latin, FUN = "median")
-sort(med.per.sp)
-
-p1 <- ggplot(prop.abr)+
-  aes(x = reorder(Nom_Latin,freq.abr,median),  y = freq.abr)+
-  geom_boxplot(fill = "gray90", alpha = 0.5)+
-  theme_classic()+
-  labs(x = "Species", y = "% browsed plots per year")+ 
-  theme(axis.text.x = element_text(face = "italic", angle = 90))
-
-p2 <- ggplot(prop.abr)+
-  aes(x = Annee, y = freq.abr)+
-  geom_line()+
-  theme_classic()+
-  labs(x = "", y = "% browsed plots")+
-  facet_wrap(~reorder(Nom_Latin,freq.abr,median),nrow = 4)+
-  theme_classic() +
-  theme(
-    strip.background = element_blank() ,
-    strip.text = element_text(face = "bold.italic", size = 12), 
-    panel.border = element_rect(
-      color = "black",
-      fill = NA,
-      linewidth = 1
-    )
-  )
-
-p1+p2+
-  plot_annotation(tag_levels = 'a')
-
-ggsave("outputs/explo_multisp.png",width = 12, height = 6)
 
 # yearly trends in browsing per species, on plots with at least one species browsed
 
