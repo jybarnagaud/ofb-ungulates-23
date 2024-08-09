@@ -6,13 +6,7 @@
 # performs some additional technical checks.
 #--------------------------------------------------#
 
-### !!! raw data files to be limited to necessary variables
-# and column labels to be translated to english before releasing this script
-
 ### for figures : homogenize names of variables and order of presentation of variables
-# for coherence with the text. 
-
-### for figures : !!! homogenize scales within figures!!!
 
 ## libraries -------------------------------------------------------------------
 
@@ -27,6 +21,8 @@ library(ggeffects)
 library(patchwork)
 library(Hmisc)
 library(adegraphics)
+#library(devtools)
+#install_github("gavinsimpson/gratia",force = T) # needed for some graphical formatting details
 library(gratia)
 library(viridis)
 library(cowplot)
@@ -39,8 +35,7 @@ library(sjPlot)
 library(oddsratio)
 library(colorspace) 
 
-#------------#
-## DATA ------------------------------------------------------------------------
+## DATA ========================================================================
 
 # all data (extracted by Mathieu Garel - OFB : september 2023). Browsing is 
 # 1 (browsed) or 0 (not browsed) for each plot - year
@@ -178,7 +173,7 @@ abr.sum <- apply(abr.wide1,1,sum)
 abr2 <- abr.sum
 abr2[abr2>0] <- 1
 
-## EXPLORE COVARIATES ----------------------------------------------------------
+## EXPLORE COVARIATES ==========================================================
 
 ## correlations among spatial variables ----------------------------------------
 
@@ -261,8 +256,8 @@ df.vrst0 <-
         all = F)
 
 df.vrst <- as.data.frame(df.vrst0)
-df.vrst$Massif <- factor(df.vrst$Massif)
-df.vrst$Bois <- factor(df.vrst$Bois)
+df.vrst$Massif <- factor(df.vrst$Massif,levels = c("SEMNOZ","SW BAUGES","HAUTES BAUGES"))
+df.vrst$Bois <- factor(df.vrst$Bois,levels = c("PB","BM","GB"))
 
 ## Figure 1 : export for qGis mapping ------------------------------------------
 
@@ -274,7 +269,6 @@ df.vrst$Bois <- factor(df.vrst$Bois)
 # the shapefile for the extent of continental France is a standard low resolution, unvalidated polygon
 
 # compute number of sampling years / plot and time range
-
 
 dur.plot <-
   aggregate(df.vrst$Annee,
@@ -294,7 +288,7 @@ colnames(ytime) <- c("Numero.placette","duration","min.year","max.year")
 
 ymap <- merge(ytime,spat.data3,by = "Numero.placette",all = F)
 ymap.sf <- st_as_sf(ymap)
-st_write(ymap.sf, dsn = "outputs/fig1_map.geojson", layer = "nc.geojson")
+# st_write(ymap.sf, dsn = "outputs/fig1_map.geojson", layer = "nc.geojson")
 
 ## explanatory variables  ------------------------------------------------------
 
@@ -329,7 +323,7 @@ df.vrst$Bois <- factor(df.vrst$Bois)
 df.vrst$conso.bin <- df.vrst$conso
 df.vrst[which(df.vrst$conso.bin > 0),"conso.bin"] <- 1
 
-## Figure 2 : descriptive figure of browsing pressure --------------------------
+## Figure 2a : descriptive figure of browsing pressure --------------------------
 
 descr.dat <-
   aggregate(df.vrst$conso.bin,
@@ -409,7 +403,7 @@ f2b <- ggplot(all.descr) +
 #ggsave("outputs/curves_prop_brows.svg",width = 1500,height = 1000,units = "px")
 
 
-## Figure 3 : descriptive trends per species -----------------------------------
+## Figure 2b : descriptive trends per species -----------------------------------
 
 # add community-level browsing to the data table
 
@@ -515,6 +509,32 @@ abrbin.glob.gam <-
 gam.check(abrbin.glob.gam)
 summary(abrbin.glob.gam)
 
+# mixed model (kept here for check only - not shown in main text. results 
+# very similar to the gam but with several issues : convergence issues with 
+# "cluster" effects on splines, also convergence issues on the GLM with unscaled
+# variables (see below), complicated computation of odds ratios with custom
+# increments. Also the readers might want to take into account the following 
+# unreviewed document for a cautionary note about the interpretation of mixed
+# non-gaussian GLM: 
+# https://www.unige.ch/cisa/files/2917/0170/1919/CISA_BM_statsupport_20231129_GLMMcaution_verB.pdf)
+
+# abrbin.glob.gamm <-
+  # gam(
+  #  conso.bin ~ s(elev.buff, k = k) + 
+  #    s(northness.buff, k = k) +
+  #    s(Lvrm.buff, k = k) + 
+  #    s(Ldist.linear, k = k) + 
+  #    s(LTirs, k = k) + 
+  #    s(Appetence_mean, k = k) + 
+  #    s(vis.buff,k = k)+
+  #    s(Annee, k = k) + 
+  #    s(Lpresence, k = k)+
+  #    Bois + 
+  #    Massif ,
+  #  family = binomial,
+  #  data = df.vrst
+  # )
+
 ## Generalized Additive Model with site-specific responses ---------------------
 
 abrbin.glob.site.gam <-
@@ -552,7 +572,7 @@ abrbin.glob.lm <-
       scale(Annee) +
       scale(Lpresence)+
       Bois + 
-      Massif ,
+      Massif,
     family = binomial,
     data = df.vrst
   )
@@ -571,28 +591,14 @@ abrbin.nosc.glob.lm <-
       Annee +
       Lpresence +
       Bois + 
-      Massif ,
+      Massif,
     family = binomial,
     data = df.vrst
   )
 
 # store coefficients
 
-sc.coefs.lm <- names(coef(abrbin.glob.lm)[2:10])
-
-# dispersion diagnostics  
-
-sim.gam <-
-  simulateResiduals(fittedModel = abrbin.glob.gam, plot = F)
-testDispersion(sim.gam)
-
-sim.glm.sc <-
-  simulateResiduals(fittedModel = abrbin.glob.lm, plot = F)
-testDispersion(sim.gam)
-
-sim.glm <-
-  simulateResiduals(fittedModel = abrbin.nosc.glob.lm, plot = F)
-testDispersion(sim.gam)
+sc.coefs.lm <- names(fixef(abrbin.glob.lm)[2:10])
 
 # spatial autocorrelation diagnostic (on the GAM)
 
@@ -681,162 +687,398 @@ ci.all$variable <-
     "lvisi",
     "annee",
     "sr",
-    "GB",
-    "PB",
-    "Semnoz",
-    "SW Bauges"
+    levels(df.vrst$Bois)[2],
+    levels(df.vrst$Bois)[3],
+    levels(df.vrst$Massif)[2],
+    levels(df.vrst$Massif)[3]
   )
 
 # Odds ratio table for export
 
 write.table(ci.all,"outputs/table_odds_ratios_community.txt",sep=";")
 
-## forest plots of coefficients with the scaled model [FIGURE 2]----------------
+## Figure 3 : Partial residuals plots of GAM models ----------------------------
 
-sc.coefs.lm <- names(coef(abrbin.glob.lm)[2:10])
+# one section per variable, then compilation of the panel. 
+# includes plots for all clusters (mixed model, main text) and per clusters (SM)
 
+# elevation 
 
-fp.comm <- plot_model(
-  abrbin.glob.lm,
-  terms = sc.coefs.lm,
-  colors = "viridis",
-  sort.est = T,
-  transform = NULL,
-  axis.lim = c(-2, 2)
-) +
+p.elev <-
+  draw(
+    abrbin.glob.gam,
+    residuals = T,
+    select = 1,
+    resid_col = "gray30",
+    ci_col = "steelblue",
+    smooth_col = "darkblue",
+    caption = ""
+  ) +
+  labs(x = "Elevation (m)", "Partial effect", title = "") +
+  theme_classic()
+
+# elevation (site - specific)
+
+p.elev.site <- abrbin.glob.site.gam |>
+  draw(grouped_by = TRUE,
+       select = c(1, 2, 3),
+       caption = "") +
+  scale_color_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
+  scale_fill_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
   theme_classic() +
-  geom_hline(yintercept = 0,
-             linetype = "dashed",
-             col = "goldenrod3") +
-  labs(x = "Variables", y = "Estimates - 95%CI", title = "plot-level") +
-  scale_x_discrete(
-    labels =
-      c(
-        "Northness",
-        "Visibility",
-        "log(Rugosity)",
-        "Distance",
-        "log(Shots)",
-        "Elevation",
-        "Years",
-        "Appetency",
-        "log(Species richness)"
-      )
-  )
+  labs(x = "Elevation (m)", "Partial effect", title = "") +
+  theme_classic()
 
-fp.comm
-ggsave("outputs/fit_scaled_global.png",height=8,width=4)
+# northness 
 
-# same thing pour non scaled coefficients 
-
-nosc.coefs.lm <- names(coef(abrbin.nosc.glob.lm)[2:10])
-
-fp.comm.nosc <- plot_model(
-  abrbin.nosc.glob.lm,
-  terms = nosc.coefs.lm,
-  colors = "viridis",
-  sort.est = T,
-  transform = NULL
+p.north <- draw(
+  abrbin.glob.gam,
+  residuals = T,
+  select = 2,
+  resid_col = "gray30",
+  ci_col = "steelblue",
+  smooth_col = "darkblue",
+  caption = ""
 ) +
+  labs(x = "Northness (relative index)", "Partial effect", title = "") +
+  theme_classic()
+
+# northness (site - specific)
+
+p.north.site <- abrbin.glob.site.gam |>
+  draw(grouped_by = TRUE,
+       select = c(4, 5, 6),
+       caption = "") +
+  scale_color_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
+  scale_fill_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
   theme_classic() +
-  geom_hline(yintercept = 0,
-             linetype = "dashed",
-             col = "goldenrod3") +
-  labs(x = "Variables", y = "Estimates - 95%CI", title = "plot-level")
+  labs(x = "Northness (relative index)", "Partial effect", title = "") +
+  theme_classic()
 
-fp.comm.nosc
-ggsave("outputs/fit_scaled_global_nosc.png",height=8,width=4)
- 
-## Partial residuals plots of GAM models = [FIGURE 3]--------------------------
+# rugosity
 
- p.elev <- draw(abrbin.glob.gam, residuals = T, select = 1) +
-   labs(x = "Elevation (m)", "Marginal effect", title = "") +
-   theme_classic()
- 
- p.north <- draw(abrbin.glob.gam, residuals = T, select = 2) +
-   labs(x = "Northness (relative index)", "Marginal effect", title = "") +
-   theme_classic()
- 
- p.rugo <- draw(abrbin.glob.gam, residuals = T, select = 3) +
-   labs(x = "Rugosity (relative index)", "Marginal effect", title = "") +
-   theme_classic()
- 
- p.dist <- draw(abrbin.glob.gam, residuals = T, select = 4) +
-   labs(x = "Distance to the nearest linear element (m, log-transformed)", "Marginal effect", title =
-          "") +
-   theme_classic()
- 
- p.hunt <- draw(abrbin.glob.gam, residuals = T, select = 5) +
-   labs(x = "Number of hunting shots (log-transformed)", "Marginal effect", title =
-          "")+
-     theme_classic()
- 
- p.app <- draw(abrbin.glob.gam, residuals = T, select = 6) +
-   labs(x = "Mean appetency", "Marginal effect", title = "") +
-   theme_classic()
- 
- p.viz <- draw(abrbin.glob.gam, residuals = T, select = 7) +
-   labs(x = "Visibility (unit???)", "Marginal effect", title = "") +
-   theme_classic()
- 
- p.year <- draw(abrbin.glob.gam, residuals = T, select = 8) +
-   labs(x = "Years", "Marginal effect", title = "") +
-   theme_classic()
- 
- p.sr <- draw(abrbin.glob.gam, residuals = T, select = 9) +
-   labs(x = "Species richness (log-transformed)", "Marginal effect", title =
-          "") +
-   theme_classic()
- 
-# remains to be done (blocked by a coding issue) : plot effects of categorical variables
+p.rugo <- draw(
+  abrbin.glob.gam,
+  residuals = T,
+  select = 3,
+  resid_col = "gray30",
+  ci_col = "steelblue",
+  smooth_col = "darkblue",
+  caption = ""
+) +
+  labs(x = "Rugosity (relative index, log)", "Partial effect", title = "") +
+  theme_classic()
 
- #p.stype <-
- #  draw(
-  #   abrbin.glob.gam,
-   #  residuals = T,
-    # parametric = T,
-     # terms = "Bois")
+# rugosity (site specific)
 
- cowplot::plot_grid(
-   p.sr,
-   p.app,
-   p.elev,
-   p.hunt,
-   p.north,
-   p.rugo,
-   p.viz,
-   p.dist,
-   p.year,
-   nrow = 3,
-   ncol = 3,
-   labels = "auto"
- )
+p.rugo.site <- abrbin.glob.site.gam |>
+  draw(grouped_by = TRUE,
+       select = c(7, 8, 9),
+       caption = "") +
+  scale_color_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
+  scale_fill_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
+  theme_classic() +
+  labs(x = "Rugosity (relative index, log)", "Partial effect", title = "") +
+  theme_classic()
 
+# distance to linear elements 
 
- ggsave("outputs/fit_gam_global.png",
-        height = 9,
-        width = 9)
+p.dist <- draw(
+  abrbin.glob.gam,
+  residuals = T,
+  select = 4,
+  resid_col = "gray30",
+  ci_col = "steelblue",
+  smooth_col = "darkblue",
+  caption = ""
+) +
+  labs(x = "Distance to linear element (m, log)", "Partial effect", title =
+         "") +
+  theme_classic()
+
+# distance to linear elements (site specific)
+
+p.dist.site <- abrbin.glob.site.gam |>
+  draw(grouped_by = TRUE,
+       select = c(10, 11, 12),
+       caption = "") +
+  scale_color_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
+  scale_fill_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
+  theme_classic() +
+  labs(x = "Distance to linear element (m, log)", "Partial effect", title = "") +
+  theme_classic()
+
+# hunting pressure
+
+p.hunt <- draw(
+  abrbin.glob.gam,
+  residuals = T,
+  select = 5,
+  resid_col = "gray30",
+  ci_col = "steelblue",
+  smooth_col = "darkblue",
+  caption = ""
+) +
+  labs(x = "Hunting shots (log)", "Partial effect", title =
+         "") +
+  theme_classic()
+
+# hunting pressure (site specific)
+
+p.hunt.site <- abrbin.glob.site.gam |>
+  draw(grouped_by = TRUE,
+       select = c(13, 14, 15),
+       caption = "") +
+  scale_color_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
+  scale_fill_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
+  theme_classic() +
+  labs(x = "Hunting shots (log)", "Partial effect", title =
+         "") +
+  theme_classic()
+
+# appetency
+
+p.app <- draw(
+  abrbin.glob.gam,
+  residuals = T,
+  select = 6,
+  resid_col = "gray30",
+  ci_col = "steelblue",
+  smooth_col = "darkblue",
+  caption = ""
+) +
+  labs(x = "Mean appetency, relative index", "Partial effect", title = "") +
+  theme_classic()
+
+# appetency (site specific)
+
+p.app.site <- abrbin.glob.site.gam |>
+  draw(grouped_by = TRUE,
+       select = c(16, 17, 18),
+       caption = "") +
+  scale_color_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
+  scale_fill_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
+  theme_classic() +
+  labs(x = "Mean appetency", "Partial effect", title = "") +
+  theme_classic()
+
+# visibility 
+
+p.viz <- draw(
+  abrbin.glob.gam,
+  residuals = T,
+  select = 7,
+  resid_col = "gray30",
+  ci_col = "steelblue",
+  smooth_col = "darkblue",
+  caption = ""
+) +
+  labs(x = "Visibility (unit???)", "Partial effect", title = "") +
+  theme_classic()
+
+# visibility (site specific)
+
+p.viz.site <- abrbin.glob.site.gam |>
+  draw(grouped_by = TRUE,
+       select = c(19, 20, 21),
+       caption = "") +
+  scale_color_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
+  scale_fill_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
+  theme_classic() +
+  labs(x = "Visibility (unit???)", "Partial effect", title = "")  +
+  theme_classic()
+
+# year effect 
+
+p.year <- draw(
+  abrbin.glob.gam,
+  residuals = T,
+  select = 8,
+  resid_col = "gray30",
+  ci_col = "steelblue",
+  smooth_col = "darkblue",
+  caption =""
+) +
+  labs(x = "Years", "Partial effect", title = "") +
+  theme_classic()
+
+# year (site - specific)
+
+p.year.site <- abrbin.glob.site.gam |>
+  draw(grouped_by = TRUE,
+       select = c(22, 23, 24),
+       caption = "") +
+  scale_color_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
+  scale_fill_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
+  theme_classic() +
+  labs(x = "Years", "Partial effect", title = "")  +
+  theme_classic()
+
+# species richness
+
+p.sr <- draw(
+  abrbin.glob.gam,
+  residuals = T,
+  select = 9,
+  resid_col = "gray30",
+  ci_col = "steelblue",
+  smooth_col = "darkblue",
+  caption = ""
+) +
+  labs(x = "Species richness (log)", "Partial effect", title =
+         "") +
+  theme_classic()
+
+# species richness (site-specific)
+
+p.sr.site <- abrbin.glob.site.gam |>
+  draw(grouped_by = TRUE,
+       select = c(25, 26, 27),
+       caption = "") +
+  scale_color_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
+  scale_fill_manual(
+    values = c('#46327e', '#1fa187', 'goldenrod'),
+    name = "cluster",
+    labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
+  ) +
+  theme_classic() +
+  labs(x = "Species richness (log)", y = "Partial effect", title = "")
+
+# Categorical variables
+
+labs.type <- c("young", "medium", "old")
+p.stype <- parametric_effects(abrbin.glob.gam, terms ='Bois') |> 
+draw(caption = "") +
+theme_classic() +
+  labs(x = "Stand type",y = "Partial effect", title = "",caption = "") +
+  ylim(-0.5,0.5)+
+ scale_x_discrete(labels= labs.type)  
+
+labs.cluster <- c("Semnoz","Cimeteret","Hautes Bauges")
+p.cluster <- parametric_effects(abrbin.glob.gam, terms ='Massif') |> 
+  draw(caption = "") +
+  theme_classic() +
+  scale_x_discrete(labels= labs.cluster)  +
+  ylim(-0.5,0.5)+
+  labs(x = "Cluster",y = "Partial effect", title = "",caption = "") 
+
+cowplot::plot_grid(
+  p.sr,
+  p.app,
+  
+  p.elev,
+  p.north,
+  p.rugo,
+  
+  p.dist,
+  p.hunt,
+  p.viz,
+  
+  p.year,
+  p.stype,
+  p.cluster,
+  
+  nrow = 4,
+  ncol = 3,
+  labels = "auto"
+)
+
+ggsave("outputs/gaudry_et_al_fig3.svg",
+       height = 12,
+       width = 9)
+
+ggsave("outputs/gaudry_et_al_fig3.png",
+       height = 12,
+       width = 9)
 
 ## MULTISPECIES COMPARATIVE ANALYSIS ===========================================
+## yearly trends in browsing per species ---------------------------------------
 
-
-# yearly trends in browsing per species, on plots with at least one species browsed
+#on plots with at least one species browsed
 
 df.sp.trends <- data.frame()
 
 for(i in 1:length(sp.keep)){
-sp.test <- sp.keep[i]
-tp.trend <- subset(prop.abr, Nom_Latin == sp.test)
-off.trend <- log(tp.trend$Presence)
-glm.trend <- glm(Consommation ~ Annee, offset = off.trend,data = tp.trend, family = poisson)
-
-coefs.trend <- summary(glm.trend)$coefficients
-
-pval.over <- testDispersion(glm.trend)$p.value
-
-df.sp.trends <- rbind(df.sp.trends,c(coefs.trend[2,],pval.over))
-#Sys.sleep(2)    
-
+  sp.test <- sp.keep[i]
+  tp.trend <- subset(prop.abr, Nom_Latin == sp.test)
+  off.trend <- log(tp.trend$Presence)
+  glm.trend <- glm(Consommation ~ Annee, offset = off.trend,data = tp.trend, family = poisson)
+  
+  coefs.trend <- summary(glm.trend)$coefficients
+  
+  pval.over <- testDispersion(glm.trend)$p.value
+  
+  df.sp.trends <- rbind(df.sp.trends,c(coefs.trend[2,],pval.over))
+  #Sys.sleep(2)    
+  
 }
 colnames(df.sp.trends) <- c("trend","se.trend","z.trend","pval.trend","overdisp.trend")
 rownames(df.sp.trends) <- sp.keep
@@ -848,7 +1090,7 @@ off.trend.aa <- log(tp.trend.aa$Presence)
 glm.trend.aa <- glm(Consommation ~ Annee, offset = off.trend.aa,data = tp.trend.aa, family = poisson)
 summary(glm.trend.aa)
 
-## multi-species mixed GAM (not used in the article) ---------------------------
+## prepare dataset for species-level models ------------------------------------
 
 covariates <- df.vrst[, !names(df.vrst) %in% "conso.bin"]
 
@@ -869,8 +1111,10 @@ abr.data5 <-
 abr.data5$Nom_Latin <- factor(abr.data5$Nom_Latin)
 abr.data5$Numero.placette <- factor(abr.data5$Numero.placette)
 
+## multi-species mixed GAM (not used in the article) ---------------------------
+
 #abrbin.sp.gamm <-
-  "gamm(
+"gamm(
     Consommation ~ s(elev.buff, k = k, by = Nom_Latin) + 
       s(northness.buff, k = k, by = Nom_Latin) +
       s(Lvrm.buff, k = k, by = Nom_Latin) + 
@@ -898,75 +1142,75 @@ abr.data5$Numero.placette <- factor(abr.data5$Numero.placette)
 # this loop runs models and store results
 
 for(i in 1:nlevels(abr.data5$Nom_Latin)){ 
-
-sp <- levels(abr.data5$Nom_Latin)[i]
-
-sub.sp <- subset(abr.data5,Nom_Latin == sp)
-
-nm.sp <- paste("conso_gam",sub(" ", "_", sp),sep="_")
-
-# Run one GAM per species 
-
-assign(nm.sp,
- gam(
-  Consommation ~ s(elev.buff, k = k) + 
-    s(northness.buff, k = k) +
-    s(Lvrm.buff, k = k) + 
-    s(Ldist.linear, k = k) + 
-    s(LTirs, k = k) + 
-    s(Appetence_mean, k = k) + 
-    s(vis.buff, k = k)+
-    s(Annee, k = k) +
-    s(Lpresence, k = k)+
-    Bois +
-    Massif, 
-  family = binomial,
-  data = sub.sp
-)
-)
-
-# run the corresponding GLM with scaled variables 
-
-nm2.sp <- paste("conso_glm",sub(" ", "_", sp),sep="_")
-nm2.nosc.sp <- paste("conso_nosc_glm",sub(" ", "_", sp),sep="_")
-
-assign(nm2.sp,
-       glm(
-         Consommation ~ scale(elev.buff) + 
-           scale(northness.buff) +
-           scale(Lvrm.buff) + 
-           scale(Ldist.linear) + 
-           scale(LTirs) + 
-           scale(Appetence_mean) +
-           scale(vis.buff) +
-           scale(Annee) +
-           scale(Lpresence) +
-           Bois +
-           Massif, 
-         family = binomial,
-         data = sub.sp
-       )
-)
-
-# run the corresponding GLM with non-scaled variables (for odds ratios)
-
-assign(nm2.nosc.sp,
-       glm(
-         Consommation ~ elev.buff + 
-           northness.buff +
-           Lvrm.buff + 
-           Ldist.linear + 
-           LTirs + 
-           Appetence_mean + 
-           vis.buff + 
-           Annee +
-           Lpresence +
-           Bois +
-           Massif, 
-         family = binomial,
-         data = sub.sp
-       )
-)
+  
+  sp <- levels(abr.data5$Nom_Latin)[i]
+  
+  sub.sp <- subset(abr.data5,Nom_Latin == sp)
+  
+  nm.sp <- paste("conso_gam",sub(" ", "_", sp),sep="_")
+  
+  # Run one GAM per species 
+  
+  assign(nm.sp,
+         gam(
+           Consommation ~ s(elev.buff, k = k) + 
+             s(northness.buff, k = k) +
+             s(Lvrm.buff, k = k) + 
+             s(Ldist.linear, k = k) + 
+             s(LTirs, k = k) + 
+             s(Appetence_mean, k = k) + 
+             s(vis.buff, k = k)+
+             s(Annee, k = k) +
+             s(Lpresence, k = k)+
+             Bois +
+             Massif, 
+           family = binomial,
+           data = sub.sp
+         )
+  )
+  
+  # run the corresponding GLM with scaled variables 
+  
+  nm2.sp <- paste("conso_glm",sub(" ", "_", sp),sep="_")
+  nm2.nosc.sp <- paste("conso_nosc_glm",sub(" ", "_", sp),sep="_")
+  
+  assign(nm2.sp,
+         glm(
+           Consommation ~ scale(elev.buff) + 
+             scale(northness.buff) +
+             scale(Lvrm.buff) + 
+             scale(Ldist.linear) + 
+             scale(LTirs) + 
+             scale(Appetence_mean) +
+             scale(vis.buff) +
+             scale(Annee) +
+             scale(Lpresence) +
+             Bois +
+             Massif, 
+           family = binomial,
+           data = sub.sp
+         )
+  )
+  
+  # run the corresponding GLM with non-scaled variables (for odds ratios)
+  
+  assign(nm2.nosc.sp,
+         glm(
+           Consommation ~ elev.buff + 
+             northness.buff +
+             Lvrm.buff + 
+             Ldist.linear + 
+             LTirs + 
+             Appetence_mean + 
+             vis.buff + 
+             Annee +
+             Lpresence +
+             Bois +
+             Massif, 
+           family = binomial,
+           data = sub.sp
+         )
+  )
 }
 
 # store results in lists
@@ -975,9 +1219,9 @@ gam.sp.list <- ls()[grep("conso_gam",ls())]
 glm.sp.list <- ls()[grep("conso_glm",ls())]
 glm.nosc.sp.list <- ls()[grep("conso_nosc_glm",ls())]
 
-## comparison of species responses to each variable [FIGURE 4] -----------------
+## comparison of species responses to each variable  ---------------------------
 
-# compare the curves(uses gratia)
+# compare the curves(uses gratia) - for exploration only, not used in article
 
 comp.sp.all <-
   compare_smooths(
@@ -1009,21 +1253,18 @@ comp.sp.all <-
 # the order of levels in the "model" variable is forced, otherwise unnest reorders randomly... 
 
 comp.sp.all.df <- unnest(comp.sp.all,cols="data")
-comp.sp.all.df$model <- factor(comp.sp.all.df$model , levels = unique(comp.sp.all.df$model)) 
-                               
-q10 <- qualitative_hcl(10, "Dark2")
-names.q10 <- levels(abr.data5$Nom_Latin)
+comp.sp.all.df$model <- factor(comp.sp.all.df$.model , levels = unique(comp.sp.all.df$.model)) 
 
 p.gam.ele <- ggplot(comp.sp.all.df) +
-  aes(x = elev.buff, y = est, col = model) +
-  scale_color_manual(values = q10, labels = names.q10) +
+  aes(x = elev.buff, y = .estimate, col = .model) +
+  scale_color_viridis_d(labels = levels(abr.data5$Nom_Latin)) +
   geom_line(linewidth = 2) +
   theme_classic() +
   labs(x = "Elevation (m)", y = "Scaled marginal effect", title =
          "") 
 
 p.gam.north <- ggplot(comp.sp.all.df) +
-  aes(x = northness.buff, y = est, col = model) +
+  aes(x = northness.buff, y = .estimate, col = .model) +
   scale_color_viridis_d(labels = levels(abr.data5$Nom_Latin)) +
   geom_line() +
   theme_classic() +
@@ -1031,25 +1272,25 @@ p.gam.north <- ggplot(comp.sp.all.df) +
   labs(x = "Northness (relative unit)", y = "Scaled marginal effect", title =
          "")
 p.gam.vrm <- ggplot(comp.sp.all.df) +
-  aes(x = Lvrm.buff, y = est, col = model) +
+  aes(x = Lvrm.buff, y = .estimate, col = .model) +
   scale_color_viridis_d(labels = levels(abr.data5$Nom_Latin)) +
   geom_line() +
   theme_classic() +
   ylim(-1,2) +
-labs(x = "Rugosity (log(relative unit))", y = "Scaled marginal effect", title =
+  labs(x = "Rugosity (log(relative unit))", y = "Scaled marginal effect", title =
          "")
-  
+
 p.gam.lin <- ggplot(comp.sp.all.df) +
-  aes(x = Ldist.linear, y = est, col = model) +
+  aes(x = Ldist.linear, y = .estimate, col = .model) +
   scale_color_viridis_d(labels = levels(abr.data5$Nom_Latin)) +
   geom_line() +
   theme_classic() +
   ylim(-1,1)+
-    labs(x = "Distance to near.estimate linear element (log(m))", y = "Scaled marginal effect", title =
+  labs(x = "Distance to near.estimate linear element (log(m))", y = "Scaled marginal effect", title =
          "")
 
 p.gam.tirs <- ggplot(comp.sp.all.df) +
-  aes(x = LTirs, y = est, col = model) +
+  aes(x = LTirs, y = .estimate, col = .model) +
   scale_color_viridis_d(labels = levels(abr.data5$Nom_Latin)) +
   geom_line() +
   theme_classic() +
@@ -1058,7 +1299,7 @@ p.gam.tirs <- ggplot(comp.sp.all.df) +
          "")
 
 p.gam.app <- ggplot(comp.sp.all.df) +
-  aes(x = Appetence_mean, y = est, col = model) +
+  aes(x = Appetence_mean, y = .estimate, col = .model) +
   scale_color_viridis_d(labels = levels(abr.data5$Nom_Latin)) +
   geom_line() +
   theme_classic() +
@@ -1067,7 +1308,7 @@ p.gam.app <- ggplot(comp.sp.all.df) +
          "") 
 
 p.gam.vis <- ggplot(comp.sp.all.df) +
-  aes(x = vis.buff, y = est, col = model) +
+  aes(x = vis.buff, y = .estimate, col = .model) +
   scale_color_viridis_d(labels = levels(abr.data5$Nom_Latin)) +
   geom_line() +
   theme_classic() +
@@ -1076,7 +1317,7 @@ p.gam.vis <- ggplot(comp.sp.all.df) +
          "") 
 
 p.gam.an <- ggplot(comp.sp.all.df) +
-  aes(x = Annee, y = est, col = model) +
+  aes(x = Annee, y = .estimate, col = .model) +
   scale_color_viridis_d(labels = levels(abr.data5$Nom_Latin)) +
   geom_line() +
   theme_classic() +
@@ -1085,15 +1326,14 @@ p.gam.an <- ggplot(comp.sp.all.df) +
          "")
 
 p.gam.sr <- ggplot(comp.sp.all.df) +
-  aes(x = Lpresence, y = est, col = model) +
+  aes(x = Lpresence, y = .estimate, col = .model) +
   scale_color_viridis_d(labels = levels(abr.data5$Nom_Latin)) +
   geom_line() +
   theme_classic() +
   ylim(-1, 3) +
   labs(x = "Species richness", y = "Scaled marginal effect", title =
          "")
-
-## figure ----------------------------------------------------------------------
+# figure
 
 cowplot::plot_grid(
   p.gam.ele,
@@ -1110,7 +1350,7 @@ cowplot::plot_grid(
   labels = "AUTO"
 )
 
-ggsave("outputs/species_level_plots.png", width = 9, height = 9)
+# ggsave("outputs/species_level_plots.png", width = 9, height = 9)
 
 ## compute odds ratios ---------------------------------------------------------
 
@@ -1121,36 +1361,36 @@ or.glm <- data.frame()
 for (i in 1:length(glm.nosc.sp.list)) {
   sp.mod <- get(glm.nosc.sp.list[i])
   
-# odds ratios
-
-dat.or <-
-  subset(abr.data5, Nom_Latin == levels(abr.data5$Nom_Latin)[i])
-elev.sp.or <-
-  or_glm(data = dat.or, model = sp.mod, incr = increments)
-
-# compile data
-
-ci.sp <- as.data.frame(elev.sp.or[, c(2, 3, 4)])
-colnames(ci.sp) <- c("odds", "lower", "upper")
-ci.sp$species <-
-  sub("_", " ", substring(glm.sp.list[i], 11, nchar(glm.sp.list[i])))
-ci.sp$variable <-
-  c(
-    "elev",
-    "northness",
-    "lvrm",
-    "ldist.lin",
-    "ltirs",
-    "app_mean",
-    "visi",
-    "annee",
-    "sr",
-    "GB",
-    "PB",
-    "Semnoz",
-    "SW Bauges"
-  )
-or.glm <- rbind(or.glm, ci.sp)
+  # odds ratios
+  
+  dat.or <-
+    subset(abr.data5, Nom_Latin == levels(abr.data5$Nom_Latin)[i])
+  elev.sp.or <-
+    or_glm(data = dat.or, model = sp.mod, incr = increments)
+  
+  # compile data
+  
+  ci.sp <- as.data.frame(elev.sp.or[, c(2, 3, 4)])
+  colnames(ci.sp) <- c("odds", "lower", "upper")
+  ci.sp$species <-
+    sub("_", " ", substring(glm.sp.list[i], 11, nchar(glm.sp.list[i])))
+  ci.sp$variable <-
+    c(
+      "elev",
+      "northness",
+      "lvrm",
+      "ldist.lin",
+      "ltirs",
+      "app_mean",
+      "visi",
+      "annee",
+      "sr",
+      levels(abr.data5$Bois)[2],
+      levels(abr.data5$Bois)[3],
+      levels(abr.data5$Massif)[2],
+      levels(abr.data5$Massif)[3]
+    )
+  or.glm <- rbind(or.glm, ci.sp)
 }
 
 # concatenate with the odds ratios of the community model
@@ -1160,38 +1400,38 @@ ci.sp.all <- rbind(or.glm,ci.all)
 # plots odds ratios as a forest plot
 
 varinames <- data.frame(names = c("elev","northness","lvrm","ldist.lin","ltirs","app_mean","annee","sr"),
-varilabs = c("Elevation (m)","Northness (relative unit","Rugosity (log(relative unit))","Distance to nearest linear element (log(m))","Number of hunting shots (log)","Mean attractivity (scores)","Years","Species richness")
+                        varilabs = c("Elevation (m)","Northness (relative unit","Rugosity (log(relative unit))","Distance to nearest linear element (log(m))","Number of hunting shots (log)","Mean attractivity (scores)","Years","Species richness")
 )
 
 for(i in 1:nrow(varinames)){
-
-vari <- varinames[i,1]
-ci.sp.elev <- subset(ci.sp.all,variable == vari & species!="community")
-ci.sp.elev$species <- reorder(ci.sp.elev$species,ci.sp.elev$odds)
-ci.sp.elev$n_species <- as.numeric(ci.sp.elev$species)
-
-ci.comm.elev <- subset(ci.sp.all,variable == vari & species=="community")
-ci.comm.elev$n_species <- 0
-
-assign(paste("plot",varinames[i,1],sep="_"), ggplot(data=ci.sp.elev, aes(y=n_species, x=odds, xmin=lower, xmax=upper)) +
-  geom_point() + 
-  geom_errorbarh(height=.1) +
-  geom_point(aes(x=odds,y=0),data = ci.comm.elev,colour="goldenrod3")+
-  geom_errorbarh(aes(xmin=lower,xmax=upper),data = ci.comm.elev,colour="goldenrod3",height=.1)+
-  theme_classic()+
-  scale_y_continuous(breaks = 0:10,labels = c("community",as.character(levels(ci.sp.elev$species))))+
-  labs(x = "Odds ratio", y = "Species",title = varinames[i,2])+
-  geom_vline(xintercept = 1, linetype="dashed",col="steelblue")
-)
+  
+  vari <- varinames[i,1]
+  ci.sp.elev <- subset(ci.sp.all,variable == vari & species!="community")
+  ci.sp.elev$species <- reorder(ci.sp.elev$species,ci.sp.elev$odds)
+  ci.sp.elev$n_species <- as.numeric(ci.sp.elev$species)
+  
+  ci.comm.elev <- subset(ci.sp.all,variable == vari & species=="community")
+  ci.comm.elev$n_species <- 0
+  
+  assign(paste("plot",varinames[i,1],sep="_"), ggplot(data=ci.sp.elev, aes(y=n_species, x=odds, xmin=lower, xmax=upper)) +
+           geom_point() + 
+           geom_errorbarh(height=.1) +
+           geom_point(aes(x=odds,y=0),data = ci.comm.elev,colour="goldenrod3")+
+           geom_errorbarh(aes(xmin=lower,xmax=upper),data = ci.comm.elev,colour="goldenrod3",height=.1)+
+           theme_classic()+
+           scale_y_continuous(breaks = 0:10,labels = c("community",as.character(levels(ci.sp.elev$species))))+
+           labs(x = "Odds ratio", y = "Species",title = varinames[i,2])+
+           geom_vline(xintercept = 1, linetype="dashed",col="steelblue")
+  )
 }
 
-# plot of "stand" effect (contrasts)
+# plot of "stand" effect (contrasts, reference = "PB" (young stands))
 
-or.bois.sp <- subset(ci.sp.all, variable%in%c("GB","PB")& species!="community")
+or.bois.sp <- subset(ci.sp.all, variable%in%c(levels(abr.data5$Bois)[2],levels(abr.data5$Bois)[3])& species!="community")
 or.bois.sp$species <- reorder(or.bois.sp$species,or.bois.sp$odds)
 or.bois.sp$n_species <- as.numeric(or.bois.sp$species)
 
-or.bois.comm <- subset(ci.sp.all, variable%in%c("GB","PB")& species=="community")
+or.bois.comm <- subset(ci.sp.all, variable%in%c(levels(abr.data5$Bois)[2],levels(abr.data5$Bois)[3])& species=="community")
 or.bois.comm$n_species <- 0
 
 plot_bois <- ggplot(data=or.bois.sp, aes(y=n_species, x=odds, xmin=lower, xmax=upper)) +
@@ -1203,15 +1443,15 @@ plot_bois <- ggplot(data=or.bois.sp, aes(y=n_species, x=odds, xmin=lower, xmax=u
   scale_y_continuous(breaks = 0:10,labels = c("community",as.character(levels(ci.sp.elev$species))))+
   labs(x = "Odds ratio (by contrast with MB)", y = "Species",title = "Stand type")+
   geom_vline(xintercept = 1, linetype="dashed",col="steelblue") +
-    facet_wrap(~variable)
-  
-# plot of "region" effect (contrasts)
+  facet_wrap(~variable)
 
-or.zone.sp <- subset(ci.sp.all, variable%in%c("Semnoz","SW Bauges")& species!="community")
+# plot of the cluster effect (contrasts, reference = "Semnoz")
+
+or.zone.sp <- subset(ci.sp.all, variable%in%c(levels(abr.data5$Massif)[2],levels(abr.data5$Massif)[3])& species!="community")
 or.zone.sp$species <- reorder(or.zone.sp$species,or.zone.sp$odds)
 or.zone.sp$n_species <- as.numeric(or.zone.sp$species)
 
-or.zone.comm <- subset(ci.sp.all, variable%in%c("Semnoz","SW Bauges")& species=="community")
+or.zone.comm <- subset(ci.sp.all, variable%in%c(levels(abr.data5$Massif)[2],levels(abr.data5$Massif)[3])& species=="community")
 or.zone.comm$n_species <- 0
 
 plot_zone <- ggplot(data=or.zone.sp, aes(y=n_species, x=odds, xmin=lower, xmax=upper)) +
@@ -1225,9 +1465,78 @@ plot_zone <- ggplot(data=or.zone.sp, aes(y=n_species, x=odds, xmin=lower, xmax=u
   geom_vline(xintercept = 1, linetype="dashed",col="steelblue") +
   facet_wrap(~variable)
 
-## forest plot of scaled effects [FIGURE 5]-------------------------------------
+## Figure 4a: forest plot of scaled effects - community level ------------------
 
-# has to be combined with the first part of figure 2 above
+# plot - level model (the species-level plots are in a next section)
+
+sc.coefs.lm <- names(coef(abrbin.glob.lm)[2:10])
+
+fp.comm <- plot_model(
+  abrbin.glob.lm,
+  terms = sc.coefs.lm,
+  sort.est = T,
+  transform = NULL,
+  axis.lim = c(-2, 2),
+  color = "black", 
+  show.values = T,
+  value.offset = 0.3,
+  value.size = 3,
+  dot.size = 2, 
+  line.size = 0.5
+) +
+  theme_classic() +
+  geom_hline(yintercept = 0,
+             linetype = "dashed",
+             col = "goldenrod3") +
+  labs(x = "Variables", y = "Estimates - 95%CI", title = "a - plot-level") +
+  scale_x_discrete(
+    labels =
+      c(
+        "Northness",
+        "Visibility",
+        "log(Rugosity)",
+        "Distance",
+        "log(Shots)",
+        "Elevation",
+        "Years",
+        "Appetency",
+        "log(Species richness)"
+      )
+  )
+
+fp.comm
+
+# ggsave("outputs/fit_scaled_global.png",height=8,width=4)
+
+# same thing pour non scaled coefficients 
+
+nosc.coefs.lm <- names(coef(abrbin.nosc.glob.lm)[2:10])
+
+fp.comm.nosc <- plot_model(
+  abrbin.nosc.glob.lm,
+  terms = nosc.coefs.lm,
+  colors = "viridis",
+  sort.est = T,
+  transform = NULL, 
+  show.values = T,
+  value.offset = 0.3,
+  value.size = 3,
+  dot.size = 1, 
+  line.size = 0.3
+) +
+  theme_classic() +
+  geom_hline(yintercept = 0,
+             linetype = "dashed",
+             col = "goldenrod3") +
+  labs(x = "Variables", y = "Estimates - 95%CI", title = "plot-level")
+
+fp.comm.nosc
+# ggsave("outputs/fit_scaled_global_nosc.png",height=8,width=4)
+ 
+
+## Figure 4b: forest plot of scaled effects - species level --------------------
+
+# has to be combined with the first part of figure 4 above
 # order plots as in the plot level analysis
 
 names(glm.sp.list) <- levels(abr.data5$Nom_Latin)
@@ -1254,40 +1563,44 @@ assign(paste("sp_forplot",i,sep="_"),plot_model(
   glm.tp,
   order.terms = pos.coefs,
   terms = coef.plot.level,
-  colors = "viridis",
   sort.est = F,
- 
+ color = "black",
   transform = NULL,
   axis.labels = rep(" ",9),
-  axis.lim = c(-2,2)
+  axis.lim = c(-2,2), show.values = TRUE,
+ value.offset = 0.3,
+ value.size = 3,
+ dot.size = 1, 
+ line.size = 0.3
 ) +
 theme_classic() +
-theme(plot.title = element_text(face = "italic")) +
   geom_hline(yintercept = 0,
              linetype = "dashed",
              col = "goldenrod3") +
-labs(x = "", y = "Estimates - 95%CI", title = names(glm.sp.list)[i])
+labs(x = "", y = "Estimates - 95%CI", title = paste(letters[i+1],names(glm.sp.list)[i], sep = " - "))
 
   
 )
 } else {
   
-     
   assign(paste("sp_forplot",i,sep="_"),plot_model(
     glm.tp,
     terms = coef.plot.level,
-    colors = "viridis",
     sort.est = F,
     order.terms = pos.coefs,
+    color = "black",
     transform = NULL,
-    axis.lim = c(-2,2)
+    axis.lim = c(-2,2), show.values = TRUE,
+    value.offset = 0.3,
+    value.size = 3,
+    dot.size = 1, 
+    line.size = 0.3
     ) +
     theme_classic() +
-        theme(plot.title = element_text(face = "italic")) + 
     geom_hline(yintercept = 0,
                linetype = "dashed",
                col = "goldenrod3") +
-    labs(x = "Variables", y = "Estimates - 95%CI", title = names(glm.sp.list)[i])+
+    labs(x = "", y = "Estimates - 95%CI", title = paste(letters[i+1],names(glm.sp.list)[i], sep = " - "))+
     scale_x_discrete(labels=rev(labs.variables))
   )
 }
@@ -1307,11 +1620,10 @@ cowplot::plot_grid(
   sp_forplot_9,
   sp_forplot_10,
   nrow = 4,
-  ncol = 3,
-  labels = "auto"
+  ncol = 3
 )
 
-ggsave("outputs/species_level_forest_plots.png", width = 9, height = 9)
+ggsave("outputs/species_level_forest_plots.png", width = 12, height = 12)
 
 ## sensitivity analysis : remove Hedera helix ----------------------------------
 
@@ -1411,10 +1723,10 @@ ci.all.nohedera$variable <-
     "lvisi",
     "annee",
     "sr",
-    "GB",
-    "PB",
-    "Semnoz",
-    "SW Bauges"
+    levels(df.vrst.nohedera$Bois)[2],
+    levels(df.vrst.nohedera$Bois)[3],
+    levels(df.vrst.nohedera$Massif)[2],
+    levels(df.vrst.nohedera$Massif)[3]
   )
 
 ## compute percents of deviance explained
