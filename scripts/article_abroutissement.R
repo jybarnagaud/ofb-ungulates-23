@@ -34,6 +34,7 @@ library(mgcViz)
 library(sjPlot)
 library(oddsratio)
 library(colorspace) 
+library(modelsummary)
 
 ## DATA ========================================================================
 
@@ -1477,18 +1478,13 @@ fp.comm <- plot_model(
   sort.est = T,
   transform = NULL,
   axis.lim = c(-2, 2),
-  color = "black", 
-  show.values = T,
-  value.offset = 0.3,
-  value.size = 3,
+  colors = c("steelblue","darkred"),
   dot.size = 2, 
-  line.size = 0.5
+  line.size = 0.5,
+  vline.color = "gray80"
 ) +
   theme_classic() +
-  geom_hline(yintercept = 0,
-             linetype = "dashed",
-             col = "goldenrod3") +
-  labs(x = "Variables", y = "Estimates - 95%CI", title = "a - plot-level") +
+  labs(x = "", y = "Estimates - 95%CI", title = paste(letters[1],"plot", sep = " - "))+
   scale_x_discrete(
     labels =
       c(
@@ -1506,6 +1502,8 @@ fp.comm <- plot_model(
 
 fp.comm
 
+
+
 # ggsave("outputs/fit_scaled_global.png",height=8,width=4)
 
 # same thing pour non scaled coefficients 
@@ -1515,20 +1513,21 @@ nosc.coefs.lm <- names(coef(abrbin.nosc.glob.lm)[2:10])
 fp.comm.nosc <- plot_model(
   abrbin.nosc.glob.lm,
   terms = nosc.coefs.lm,
-  colors = "viridis",
+  colors = c("steelblue","darkred"),
   sort.est = T,
   transform = NULL, 
   show.values = T,
   value.offset = 0.3,
-  value.size = 3,
+  value.size = 2,
   dot.size = 1, 
-  line.size = 0.3
+  line.size = 0.5,
+  vline.color = "gray80"
 ) +
   theme_classic() +
-  geom_hline(yintercept = 0,
-             linetype = "dashed",
-             col = "goldenrod3") +
-  labs(x = "Variables", y = "Estimates - 95%CI", title = "plot-level")
+  labs(x = "", y = "Estimates - 95%CI", title = paste(letters[1],"plot", sep = " - "))+
+  scale_x_discrete(labels=rev(labs.variables)+
+                     theme( axis.title.x = element_text(size = 12))
+)
 
 fp.comm.nosc
 # ggsave("outputs/fit_scaled_global_nosc.png",height=8,width=4)
@@ -1564,22 +1563,16 @@ assign(paste("sp_forplot",i,sep="_"),plot_model(
   order.terms = pos.coefs,
   terms = coef.plot.level,
   sort.est = F,
- color = "black",
+  colors = c("steelblue","darkred"),
   transform = NULL,
   axis.labels = rep(" ",9),
-  axis.lim = c(-2,2), show.values = TRUE,
- value.offset = 0.3,
- value.size = 3,
+  axis.lim = c(-2,2),
  dot.size = 1, 
- line.size = 0.3
+ line.size = 0.5,
+ vline.color = "gray80"
 ) +
-theme_classic() +
-  geom_hline(yintercept = 0,
-             linetype = "dashed",
-             col = "goldenrod3") +
-labs(x = "", y = "Estimates - 95%CI", title = paste(letters[i+1],names(glm.sp.list)[i], sep = " - "))
-
-  
+  theme_classic() +
+  labs(x = "", y = "Estimates - 95%CI", title = paste(letters[i+1],names(glm.sp.list)[i], sep = " - "))
 )
 } else {
   
@@ -1588,42 +1581,62 @@ labs(x = "", y = "Estimates - 95%CI", title = paste(letters[i+1],names(glm.sp.li
     terms = coef.plot.level,
     sort.est = F,
     order.terms = pos.coefs,
-    color = "black",
+    colors = c("steelblue","darkred"),
     transform = NULL,
-    axis.lim = c(-2,2), show.values = TRUE,
-    value.offset = 0.3,
-    value.size = 3,
-    dot.size = 1, 
-    line.size = 0.3
+    axis.lim = c(-2,2), dot.size = 1, 
+    line.size = 0.3,
+    vline.color = "gray80"
     ) +
     theme_classic() +
-    geom_hline(yintercept = 0,
-               linetype = "dashed",
-               col = "goldenrod3") +
     labs(x = "", y = "Estimates - 95%CI", title = paste(letters[i+1],names(glm.sp.list)[i], sep = " - "))+
-    scale_x_discrete(labels=rev(labs.variables))
+      scale_x_discrete(labels=rev(labs.variables))
   )
 }
 
 }
 
-cowplot::plot_grid(
-  fp.comm, 
-  sp_forplot_1,
-  sp_forplot_2,
-  sp_forplot_3,
-  sp_forplot_4,
-  sp_forplot_5,
-  sp_forplot_6,
-  sp_forplot_7,
-  sp_forplot_8,
-  sp_forplot_9,
-  sp_forplot_10,
-  nrow = 4,
-  ncol = 3
-)
+fp.comm+ 
+sp_forplot_1+
+sp_forplot_2+
+sp_forplot_3+
+sp_forplot_4+
+sp_forplot_5+
+sp_forplot_6+
+sp_forplot_7+
+sp_forplot_8+
+sp_forplot_9+
+sp_forplot_10+
+  plot_layout(ncol = 3,widths = 1,heights = 1)
 
 ggsave("outputs/species_level_forest_plots.png", width = 12, height = 12)
+
+## coefficients of qualitative variables ---------------------------------------
+
+# summarises all coefficients as a table - scaled variables
+
+eval.glm.sp <- lapply(glm.sp.list, FUN = "get")
+eval.glm.all <- c(list(abrbin.glob.lm), eval.glm.sp)
+
+tab.scaled <-
+  modelsummary(
+    eval.glm.all,
+    statistic = "conf.int",
+    shape = model + statistic ~ term,
+    output = "outputs/glm-scaled-variables.xlsx"
+  )
+
+# summarises all coefficients as a table - non scaled variables
+
+eval.glm.nosc.sp <- lapply(glm.nosc.sp.list, FUN = "get")
+eval.glm.nosc.all <- c(list(abrbin.nosc.glob.lm), eval.glm.nosc.sp)
+
+tab.raw <-
+  modelsummary(
+    eval.glm.nosc.all,
+    statistic = "conf.int",
+    shape = model + statistic ~ term,
+    output = "outputs/glm-raw-variables.xlsx"
+  )
 
 ## sensitivity analysis : remove Hedera helix ----------------------------------
 
