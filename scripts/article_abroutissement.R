@@ -1,12 +1,13 @@
-#--------------------------------------------------#
-####### R script for Gaudry et al. [TITLE] #########
-# contact : william.gaudry@ofb.gouv.fr
-# last modified : 08/08/2024
+#------------------------------------------------------------------------------#
+            ####### R script for Gaudry et al. [TITLE] #########
+# main author : William Gaudry - Office Français de la Biodiversité
+# script author : Jean-Yves Barnagaud - Ecole Pratique des Hautes Etudes
+# contact for article and data : william.gaudry@ofb.gouv.fr
+# contact for script : jean-yves.barnagaud@ephe.psl.eu
+# last modified : 13/08/2024
 # replicates the analyses presented in the paper and 
 # performs some additional technical checks.
-#--------------------------------------------------#
-
-### for figures : homogenize names of variables and order of presentation of variables
+#------------------------------------------------------------------------------#
 
 ## libraries -------------------------------------------------------------------
 
@@ -35,6 +36,8 @@ library(sjPlot)
 library(oddsratio)
 library(colorspace) 
 library(modelsummary)
+library(openxlsx)
+library(tmap)
 
 ## DATA ========================================================================
 
@@ -1061,6 +1064,18 @@ ggsave("outputs/gaudry_et_al_fig3.png",
        width = 9)
 
 ## MULTISPECIES COMPARATIVE ANALYSIS ===========================================
+
+## Table 2 : descriptive data on plant species ---------------------------------
+
+abr.sp.mean <- aggregate(prop.abr[,c("Presence","Consommation")],by = list(prop.abr$Nom_Latin), FUN = "mean")
+abr.sp.sd <- aggregate(prop.abr[,c("Presence","Consommation")],by = list(prop.abr$Nom_Latin), FUN = "sd")
+abr.sp.rg <- aggregate(prop.abr[,c("Presence","Consommation")],by = list(prop.abr$Nom_Latin), FUN = "range")
+
+tab.2 <- cbind(abr.sp.mean,abr.sp.sd[,-1],abr.sp.rg$Presence,abr.sp.rg$Consommation)
+colnames(tab.2) <- c("species","mean_occ","mean_browsed","sd_occ","sd_browsed","min_occ","max_occ","min_browsed","max_browsed")
+tab.2[,-1] <- round(tab.2[,-1],2)
+write.csv(tab.2,"outputs/Table2.csv")
+
 ## yearly trends in browsing per species ---------------------------------------
 
 #on plots with at least one species browsed
@@ -1078,8 +1093,7 @@ for(i in 1:length(sp.keep)){
   pval.over <- testDispersion(glm.trend)$p.value
   
   df.sp.trends <- rbind(df.sp.trends,c(coefs.trend[2,],pval.over))
-  #Sys.sleep(2)    
-  
+
 }
 colnames(df.sp.trends) <- c("trend","se.trend","z.trend","pval.trend","overdisp.trend")
 rownames(df.sp.trends) <- sp.keep
@@ -1397,6 +1411,7 @@ for (i in 1:length(glm.nosc.sp.list)) {
 # concatenate with the odds ratios of the community model
 
 ci.sp.all <- rbind(or.glm,ci.all)
+write.csv2(ci.sp.all,"outputs/odds_ratios_glm.csv")
 
 # plots odds ratios as a forest plot
 
@@ -1468,6 +1483,16 @@ plot_zone <- ggplot(data=or.zone.sp, aes(y=n_species, x=odds, xmin=lower, xmax=u
 
 ## Figure 4a: forest plot of scaled effects - community level ------------------
 
+labs.variables <- c("log(Species richness)",
+                    "Appetency",
+                    "Years",
+                    "Elevation",
+                    "log(Shots)",
+                    "Distance",
+                    "log(Rugosity)",
+                    "Visibility",
+                    "Northness")
+
 # plot - level model (the species-level plots are in a next section)
 
 sc.coefs.lm <- names(coef(abrbin.glob.lm)[2:10])
@@ -1525,7 +1550,17 @@ fp.comm.nosc <- plot_model(
 ) +
   theme_classic() +
   labs(x = "", y = "Estimates - 95%CI", title = paste(letters[1],"plot", sep = " - "))+
-  scale_x_discrete(labels=rev(labs.variables)+
+  scale_x_discrete(labels=rev(      c(
+    "Northness",
+    "Visibility",
+    "log(Rugosity)",
+    "Distance",
+    "log(Shots)",
+    "Elevation",
+    "Years",
+    "Appetency",
+    "log(Species richness)"
+  ))+
                      theme( axis.title.x = element_text(size = 12))
 )
 
@@ -1540,15 +1575,7 @@ fp.comm.nosc
 
 names(glm.sp.list) <- levels(abr.data5$Nom_Latin)
 coef.plot.level <- names(rev(sort(coef(abrbin.glob.lm)[2:10])))
-labs.variables <- c("log(Species richness)",
-                    "Appetency",
-                    "Years",
-                    "Elevation",
-                    "log(Shots)",
-                    "Distance",
-                    "log(Rugosity)",
-                    "Visibility",
-                    "Northness")
+
 
 for (i in 1:length(glm.sp.list)){
   
@@ -1610,7 +1637,140 @@ sp_forplot_10+
 
 ggsave("outputs/species_level_forest_plots.png", width = 12, height = 12)
 
-## coefficients of qualitative variables ---------------------------------------
+## SM 1 : data for maps of covariates ------------------------------------------
+
+# main layer 
+sm1 <- as.data.frame(spat.data3)
+sm1.sf <- st_as_sf(sm1)
+#st_write(sm1.sf, dsn = "outputs/SM1.shp")
+
+# Bauges Regional Park
+bnrp <- st_read(dsn = "data/PNR_bauges.geojson")
+
+# city markers
+cities <- st_read(dsn = "data/gaudry_et_al_city_markers.geojson")
+
+# France - contour
+fra <- st_read(dsn = "data/France_contour.geojson")
+
+tm_shape(fra)+
+  tm_borders() 
+
+# map boundaries
+map.box <- st_bbox(bnrp)
+xrange <- map.box$xmax - map.box$xmin 
+yrange <- map.box$ymax - map.box$ymin 
+
+map.box[1] <- map.box[1] - (0.1 * xrange) 
+map.box[3] <- map.box[3] + (0.1 * xrange) 
+map.box[2] <- map.box[2] - (0.1 * yrange) 
+map.box[4] <- map.box[4] + (0.1 * yrange) 
+map.box <- map.box %>%  
+  st_as_sfc() 
+
+# baseline map
+base.sm1 <- tm_shape(bnrp,bbox = map.box)+
+  tm_fill(col = "#1e9b8a",alpha = 0.2)+
+  tm_shape(cities) + 
+  tm_markers(size = 0.4, col = "black",shape = 17,text = "nom_commune",text.size = 0.7,xmod = 2)+
+  #tm_symbols(size = 0.4, col = "black",shape = 17)+
+  tm_compass(type = "arrow", position = c("right", "bottom"),show.labels = 0,color.dark = "black",color.light = "white",lwd=1)+ 
+  tm_scale_bar(breaks = c(0, 5, 10),  position = c("right", "bottom"),lwd = 0.5,text.size = 0.7)
+
+# loop over all variables 
+
+labs.map <-
+  c(
+    "Elevation (m)",
+    "Slope",
+    "Northness",
+    "Rugosity",
+    "Distance to linear (m)",
+    "Human frequentation",
+    "Hunting pressure",
+    "Visibility"
+  )
+
+names(labs.map) <- c("elevation","slope","northness","rugosity","distance","human","hunting","visibility")
+
+for(i in 1:8){
+  
+var <- colnames(sm1.sf)[i+2]
+map.var <- base.sm1+
+  tm_shape(sm1.sf)+
+  tm_dots(col = var,size = 0.2,shape = 21,palette = "viridis",title = labs.map[i],title.size = 0.7,style = "pretty")
+
+nm.map <- paste("sm2",colnames(sm1.sf)[i+2],sep=".")
+
+assign(nm.map,map.var)
+# tmap_save(map.var, paste("outputs/SM2_",names(labs.map[i]),".png",sep=""), dpi = 600)
+
+}
+
+
+## SM 2 : list of plant species ------------------------------------------------
+
+abr.data3b <- subset(abr.data2b, conso.bin == 1)
+
+# number of plots of occurrence per year
+
+occ.per.year <-
+  aggregate(
+    abr.data3b[,c("Presence","Consommation")],
+    by = list(abr.data3b$Nom_Latin, abr.data3b$Annee),
+    FUN = function(x){sum(x>0)}
+  )
+colnames(occ.per.year)[1:2] <- c("species","year")
+
+abr.sp.mean.all <-
+  aggregate(occ.per.year[, c("Presence", "Consommation")],
+            by = list(occ.per.year$species),
+            FUN = "mean")
+
+abr.sp.sd.all <-
+  aggregate(occ.per.year[, c("Presence", "Consommation")],
+            by = list(occ.per.year$species),
+            FUN = "sd")
+
+abr.sp.rg.all <-
+  aggregate(occ.per.year[, c("Presence", "Consommation")],
+            by = list(occ.per.year$species),
+            FUN = "range")
+
+tab.2.all <-
+  cbind(abr.sp.mean.all,
+        abr.sp.sd.all[, -1],
+        abr.sp.rg.all$Presence,
+        abr.sp.rg.all$Consommation)
+
+colnames(tab.2.all) <-
+  c(
+    "species",
+    "mean_occ",
+    "mean_browsed",
+    "sd_occ",
+    "sd_browsed",
+    "min_occ",
+    "max_occ",
+    "min_browsed",
+    "max_browsed"
+  )
+
+tab.2.all[,-1] <- round(tab.2.all[,-1],2)
+
+tab.sm2 <-
+  merge(tab.2.all,
+        app.sp,
+        by.x = "species",
+        by.y = "espece",
+        all.x = T, all.y = F)
+
+#write.xlsx(tab.sm2, "outputs/SM2.xlsx", sheetName = "SM2")
+
+
+## SM 3 : model coefficients and odds ratios -----------------------------------
+
+## coefficients of qualitative variables
 
 # summarises all coefficients as a table - scaled variables
 
@@ -1620,8 +1780,10 @@ eval.glm.all <- c(list(abrbin.glob.lm), eval.glm.sp)
 tab.scaled <-
   modelsummary(
     eval.glm.all,
-    statistic = "conf.int",
+    estimate = "{estimate} [{conf.low}, {conf.high}]",
+    statistic = NULL,
     shape = model + statistic ~ term,
+    fmit = fmt_significant(3),
     output = "outputs/glm-scaled-variables.xlsx"
   )
 
@@ -1633,132 +1795,17 @@ eval.glm.nosc.all <- c(list(abrbin.nosc.glob.lm), eval.glm.nosc.sp)
 tab.raw <-
   modelsummary(
     eval.glm.nosc.all,
-    statistic = "conf.int",
+    estimate = "{estimate} [{conf.low}, {conf.high}]",
+    statistic = NULL,
     shape = model + statistic ~ term,
+    fmit = fmt_significant(3),
     output = "outputs/glm-raw-variables.xlsx"
   )
 
-## sensitivity analysis : remove Hedera helix ----------------------------------
-
-# presence matrix without Hedera
-
-pres.wide1.nohedera <- pres.wide1[,!names(abr.wide1)%in%"Hedera helix"]
-
-# binary browsing without Hedera
-
-abr.wide1.nohedera <- abr.wide1[,!names(abr.wide1)%in%"Hedera helix"]
-abr.sum.nohedera <- apply(abr.wide1.nohedera,1,sum)
-abr2.nohedera <- abr.sum.nohedera
-abr2.nohedera[abr2.nohedera>0] <- 1
-
-# prepare data set without Hedera
-
-abr.rs.nohedera <- apply(abr.wide1.nohedera,1,sum)
-pres.rs.nohedera <- apply(pres.wide1.nohedera,1,sum)
-
-df.vr.nohedera <-
-  data.frame(
-    Numero.placette = Numero.placette,
-    Annee = Annee,
-    conso = abr.rs.nohedera,
-    presence = pres.rs.nohedera
-  )
-
-df.vrs.nohedera <-
-  merge(df.vr.nohedera, spat.data3[, c(
-    "Numero.placette",
-    "Massif",
-    "elev.buff",
-    "northness.buff",
-    "vrm.buff",
-    "dist.linear",
-    "Tirs",
-    "vis.buff"
-  )], by = "Numero.placette", all = F)
-
-df.vrst0.nohedera <-
-  merge(df.vrs.nohedera,
-        spatemp.data[, c("Numero.placette", "Annee", "Appetence_mean", "Bois")],
-        by = c("Numero.placette", "Annee"),
-        all = F)
-
-df.vrst.nohedera <- as.data.frame(df.vrst0.nohedera)
-df.vrst.nohedera$Massif <- factor(df.vrst.nohedera$Massif)
-df.vrst.nohedera$Bois <- factor(df.vrst.nohedera$Bois)
-
-df.vrst.nohedera$conso.bin <- df.vrst.nohedera$conso
-df.vrst.nohedera[which(df.vrst.nohedera$conso.bin > 0),"conso.bin"] <- 1
-
-df.vrst.nohedera$Ldist.linear <- log(df.vrst.nohedera$dist.linear+1)
-df.vrst.nohedera$LTirs <- log(df.vrst.nohedera$Tirs+1)
-df.vrst.nohedera$Lpresence <- log(df.vrst.nohedera$presence)
-df.vrst.nohedera$Lvrm.buff <- log(df.vrst.nohedera$vrm.buff)
+# odds ratios
 
 
-# redo the community-level GLM without Hedera helix in the community
-
-sub.hedera <- subset(df.vrst.nohedera,presence != 0)
-
-glm.com.nohedera <-
-  glm(
-    conso.bin ~ elev.buff + 
-      northness.buff +
-      Lvrm.buff + 
-      Ldist.linear + 
-      LTirs + 
-      Appetence_mean + 
-      vis.buff + 
-      Annee +
-      Lpresence +
-      Bois + 
-      Massif ,
-    family = binomial,
-    data = sub.hedera
-  )
-
-# community level odds ratios without Hedera helix
-
-ci.all0.nohedera <-
-  or_glm(data = df.vrst.nohedera, model = glm.com.nohedera, incr = increments)
-
-ci.all.nohedera <- as.data.frame(ci.all0.nohedera[, c(2, 3, 4)])
-colnames(ci.all.nohedera) <- c("odds", "lower", "upper")
-
-ci.all.nohedera$species <- "community"
-ci.all.nohedera$variable <-
-  c(
-    "elev",
-    "northness",
-    "vrm",
-    "ldist.lin",
-    "ltirs",
-    "app_mean",
-    "lvisi",
-    "annee",
-    "sr",
-    levels(df.vrst.nohedera$Bois)[2],
-    levels(df.vrst.nohedera$Bois)[3],
-    levels(df.vrst.nohedera$Massif)[2],
-    levels(df.vrst.nohedera$Massif)[3]
-  )
-
-## compute percents of deviance explained
-
-dev.expl.glm.sp <- NULL
-
-for (i in 1:length(glm.sp.list)){
-  
-  glm.tp <- get(glm.sp.list[i])
-  
-  nd <- glm.tp$null.deviance
-  de <- glm.tp$deviance
-  
-  exp.dev <- 100*(nd - de) / nd
-  
-  dev.expl.glm.sp <- c(dev.expl.glm.sp, exp.dev)
-
-}
-
-names(dev.expl.glm.sp) <- names(glm.sp.list)
-
+# creates the main table
+write.xlsx(tab.scaled, "outputs/SM3.xlsx", sheetName = "scaled_coef")
+write.xlsx(tab.raw, "outputs/SM3.xlsx", sheetName = "raw_coef")
 
