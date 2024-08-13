@@ -1,0 +1,12 @@
+{
+"type": "FeatureCollection",
+"name": "gaudry_et_al_city_markers",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "type": "Préfecture", "gid": "262", "insee_commune": "74010", "nom_commune": "Annecy" }, "geometry": { "type": "Point", "coordinates": [ 6.125507967868571, 45.911982242304816 ] } },
+{ "type": "Feature", "properties": { "type": "Préfecture", "gid": "128", "insee_commune": "38185", "nom_commune": "Grenoble" }, "geometry": { "type": "Point", "coordinates": [ 5.715079750220817, 45.185544966696071 ] } },
+{ "type": "Feature", "properties": { "type": "Sous-préfecture", "gid": "259", "insee_commune": "73011", "nom_commune": "Albertville" }, "geometry": { "type": "Point", "coordinates": [ 6.384923114341714, 45.66933948352218 ] } },
+{ "type": "Feature", "properties": { "type": "Préfecture de région", "gid": "247", "insee_commune": "69123", "nom_commune": "Lyon" }, "geometry": { "type": "Point", "coordinates": [ 4.834514903252812, 45.762361331068668 ] } },
+{ "type": "Feature", "properties": { "type": "Préfecture", "gid": "260", "insee_commune": "73065", "nom_commune": "Chambéry" }, "geometry": { "type": "Point", "coordinates": [ 5.92176480778951, 45.565644948142456 ] } }
+]
+}
