@@ -1527,7 +1527,7 @@ fp.comm <- plot_model(
   vline.color = "gray80"
 ) +
   theme_classic() +
-  labs(x = "", y = "Estimates - 95%CI", title = paste(letters[1],"plot", sep = " - "))+
+  labs(x = "", y = "Estimates - 95%CI", title = paste(letters[1],"Plot", sep = " - "))+
   scale_x_discrete(
     labels =
       c(
@@ -1567,13 +1567,13 @@ fp.comm.nosc <- plot_model(
   vline.color = "gray80"
 ) +
   theme_classic() +
-  labs(x = "", y = "Estimates - 95%CI", title = paste(letters[1],"plot", sep = " - "))+
+  labs(x = "", y = "Estimates - 95%CI", title = paste(letters[1],"Plot", sep = " - "))+
   scale_x_discrete(labels=rev(      c(
     "Northness",
     "Visibility",
     "log(Rugosity)",
     "Distance",
-    "log(Shots)",
+    "log(Hunting shots)",
     "Elevation",
     "Years",
     "Appetency",
