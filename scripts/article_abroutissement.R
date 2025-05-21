@@ -718,6 +718,7 @@ p.elev <-
     smooth_col = "darkblue",
     caption = ""
   ) +
+  ylim(-15,15)+
   labs(x = "Elevation (m)", "Partial effect", title = "") +
   theme_classic()
 
@@ -737,6 +738,7 @@ p.elev.site <- abrbin.glob.site.gam |>
     name = "cluster",
     labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
   ) +
+  ylim(-15,15)+
   theme_classic() +
   labs(x = "Elevation (m)", "Partial effect", title = "") +
   theme_classic()
@@ -752,6 +754,7 @@ p.north <- draw(
   smooth_col = "darkblue",
   caption = ""
 ) +
+  ylim(-15,15)+
   labs(x = "Northness (relative index)", "Partial effect", title = "") +
   theme_classic()
 
@@ -772,6 +775,7 @@ p.north.site <- abrbin.glob.site.gam |>
     labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
   ) +
   theme_classic() +
+  ylim(-15,15)+
   labs(x = "Northness (relative index)", "Partial effect", title = "") +
   theme_classic()
 
@@ -786,6 +790,7 @@ p.rugo <- draw(
   smooth_col = "darkblue",
   caption = ""
 ) +
+  ylim(-15,15)+
   labs(x = "Rugosity (relative index, log)", "Partial effect", title = "") +
   theme_classic()
 
@@ -806,6 +811,7 @@ p.rugo.site <- abrbin.glob.site.gam |>
     labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
   ) +
   theme_classic() +
+  ylim(-15,15)+
   labs(x = "Rugosity (relative index, log)", "Partial effect", title = "") +
   theme_classic()
 
@@ -822,6 +828,7 @@ p.dist <- draw(
 ) +
   labs(x = "Distance to linear element (m, log)", "Partial effect", title =
          "") +
+  ylim(-15,15)+
   theme_classic()
 
 # distance to linear elements (site specific)
@@ -841,6 +848,7 @@ p.dist.site <- abrbin.glob.site.gam |>
     labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
   ) +
   theme_classic() +
+  ylim(-15,15)+
   labs(x = "Distance to linear element (m, log)", "Partial effect", title = "") +
   theme_classic()
 
@@ -857,6 +865,7 @@ p.hunt <- draw(
 ) +
   labs(x = "Hunting shots (log)", "Partial effect", title =
          "") +
+  ylim(-15,15)+
   theme_classic()
 
 # hunting pressure (site specific)
@@ -878,6 +887,7 @@ p.hunt.site <- abrbin.glob.site.gam |>
   theme_classic() +
   labs(x = "Hunting shots (log)", "Partial effect", title =
          "") +
+  ylim(-15,15)+
   theme_classic()
 
 # appetency
@@ -891,6 +901,7 @@ p.app <- draw(
   smooth_col = "darkblue",
   caption = ""
 ) +
+  ylim(-15,15)+
   labs(x = "Mean appetency, relative index", "Partial effect", title = "") +
   theme_classic()
 
@@ -910,6 +921,7 @@ p.app.site <- abrbin.glob.site.gam |>
     name = "cluster",
     labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
   ) +
+  ylim(-15,15)+
   theme_classic() +
   labs(x = "Mean appetency", "Partial effect", title = "") +
   theme_classic()
@@ -925,7 +937,8 @@ p.viz <- draw(
   smooth_col = "darkblue",
   caption = ""
 ) +
-  labs(x = "Visibility (unit???)", "Partial effect", title = "") +
+  ylim(-15,15)+
+  labs(x = "Visibility (nb pixels)", "Partial effect", title = "") +
   theme_classic()
 
 # visibility (site specific)
@@ -944,8 +957,9 @@ p.viz.site <- abrbin.glob.site.gam |>
     name = "cluster",
     labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
   ) +
+  ylim(-15,15)+
   theme_classic() +
-  labs(x = "Visibility (unit???)", "Partial effect", title = "")  +
+  labs(x = "Visibility (nb pixels)", "Partial effect", title = "")  +
   theme_classic()
 
 # year effect 
@@ -959,6 +973,7 @@ p.year <- draw(
   smooth_col = "darkblue",
   caption =""
 ) +
+  ylim(-15,15)+
   labs(x = "Years", "Partial effect", title = "") +
   theme_classic()
 
@@ -978,6 +993,7 @@ p.year.site <- abrbin.glob.site.gam |>
     name = "cluster",
     labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
   ) +
+  ylim(-15,15)+
   theme_classic() +
   labs(x = "Years", "Partial effect", title = "")  +
   theme_classic()
@@ -993,6 +1009,7 @@ p.sr <- draw(
   smooth_col = "darkblue",
   caption = ""
 ) +
+  ylim(-15,15)+
   labs(x = "Species richness (log)", "Partial effect", title =
          "") +
   theme_classic()
@@ -1013,6 +1030,7 @@ p.sr.site <- abrbin.glob.site.gam |>
     name = "cluster",
     labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
   ) +
+  ylim(-15,15)+
   theme_classic() +
   labs(x = "Species richness (log)", y = "Partial effect", title = "")
 
@@ -1487,7 +1505,7 @@ labs.variables <- c("log(Species richness)",
                     "Appetency",
                     "Years",
                     "Elevation",
-                    "log(Shots)",
+                    "log(Hunting shots)",
                     "Distance",
                     "log(Rugosity)",
                     "Visibility",
@@ -1517,7 +1535,7 @@ fp.comm <- plot_model(
         "Visibility",
         "log(Rugosity)",
         "Distance",
-        "log(Shots)",
+        "log(Hunting shots)",
         "Elevation",
         "Years",
         "Appetency",
