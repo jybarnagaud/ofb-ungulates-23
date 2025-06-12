@@ -1,2 +1,2 @@
 # ofb-ungulates-23
-repository for the article following Colombe Lefort's master thesis (2023)
+repository for the article : Gaudry, W. et al. submitted (june 2025)
