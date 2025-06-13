@@ -1,10 +1,10 @@
 #------------------------------------------------------------------------------#
-            ####### R script for Gaudry et al. [TITLE] #########
+            ####### R script for Gaudry et al. [TITLE]  #########
 # main author : William Gaudry - Office Français de la Biodiversité
 # script author : Jean-Yves Barnagaud - Ecole Pratique des Hautes Etudes
 # contact for article and data : william.gaudry@ofb.gouv.fr
 # contact for script : jean-yves.barnagaud@ephe.psl.eu
-# last modified : 13/08/2024
+# last modified : 13/06/2025
 # replicates the analyses presented in the paper and 
 # performs some additional technical checks.
 #------------------------------------------------------------------------------#
@@ -1655,7 +1655,7 @@ sp_forplot_10+
 
 ggsave("outputs/species_level_forest_plots.png", width = 12, height = 12)
 
-## SM 1 : data for maps of covariates ------------------------------------------
+## Appendix S1 : data for maps of covariates -----------------------------------
 
 # main layer 
 sm1 <- as.data.frame(spat.data3)
@@ -1701,12 +1701,12 @@ labs.map <-
   c(
     "Elevation (m)",
     "Slope",
-    "Northness",
-    "Rugosity",
-    "Distance to linear (m)",
+    "Northness (relative units)",
+    "Rugosity (relative units)",
+    "Distance to \n linear elements (m)",
     "Human frequentation",
-    "Hunting pressure",
-    "Visibility"
+    "Hunting shots (count)",
+    "Visibility (pixel count)"
   )
 
 names(labs.map) <- c("elevation","slope","northness","rugosity","distance","human","hunting","visibility")
@@ -1721,7 +1721,7 @@ map.var <- base.sm1+
 nm.map <- paste("sm2",colnames(sm1.sf)[i+2],sep=".")
 
 assign(nm.map,map.var)
-# tmap_save(map.var, paste("outputs/SM2_",names(labs.map[i]),".png",sep=""), dpi = 600)
+ tmap_save(map.var, paste("outputs/S1_",names(labs.map[i]),".png",sep=""), dpi = 600)
 
 }
 
