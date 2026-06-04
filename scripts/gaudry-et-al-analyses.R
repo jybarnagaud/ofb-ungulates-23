@@ -4,11 +4,7 @@
 # script author : Jean-Yves Barnagaud - Ecole Pratique des Hautes Etudes
 # contact for article and data : william.gaudry@ofb.gouv.fr
 # contact for script : jean-yves.barnagaud@ephe.psl.eu
-<<<<<<< HEAD:scripts/article_abroutissement.R
 # last modified : 04/06/2026
-=======
-# last modified : 13/06/2025
->>>>>>> 0d67a8101484ce4ff0b53dffdf16ecb12bf92a11:scripts/gaudry-et-al-analyses.R
 # replicates the analyses presented in the paper and 
 # performs some additional technical checks.
 #------------------------------------------------------------------------------#
