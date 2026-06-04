@@ -4,7 +4,7 @@
 # script author : Jean-Yves Barnagaud - Ecole Pratique des Hautes Etudes
 # contact for article and data : william.gaudry@ofb.gouv.fr
 # contact for script : jean-yves.barnagaud@ephe.psl.eu
-# last modified : 13/08/2024
+# last modified : 04/06/2026
 # replicates the analyses presented in the paper and 
 # performs some additional technical checks.
 #------------------------------------------------------------------------------#
@@ -56,10 +56,10 @@ div.pla <- read.csv2("data/Diversite_vegetale_placette.csv")
 # Names of variables (full)
 
 variable.names <- c("Species richness (log-transformed)", 
-  "Mean appetency",
+  "Mean palatability",
   "Years",
   "Elevation (m)",
-  "Number of hunting shots (log-transformed)",
+  "Number of harvested animals (log-transformed)",
   "Distance to the nearest linear element (m, log-transformed)",
   "Rugosity (relative index)",
   "Visibility (unit???)",
@@ -359,7 +359,7 @@ f2a <- ggplot(all.descr) +
   scale_fill_manual(values = c('#46327e', '#1fa187', 'goldenrod'),name = "cluster", labels = c("Semnoz","Cimeteret","Hautes Bauges"))+
   ylim(0,100)+
   theme_classic() +
-  labs(x = "", y = "browsed plots (% per year)") +
+  labs(x = "", y = "Browsed plots (% per year)") +
   scale_x_discrete(
     labels = c(
       "HAUTES BAUGES" = "Hautes Bauges",
@@ -392,7 +392,7 @@ f2b <- ggplot(all.descr) +
     strip.text = element_text(face = "bold", size = 12),
     plot.title = element_text(face = "bold", size = 12,hjust = 0)
   ) +
-  labs(title = "a",x = "", y = "browsed plots (% per year)")
+  labs(title = "a",x = "Years", y = "browsed plots (% per year)")
 
 # all
 #combined_plot <- (f2a / f2b)+
@@ -826,7 +826,7 @@ p.dist <- draw(
   smooth_col = "darkblue",
   caption = ""
 ) +
-  labs(x = "Distance to linear element (m, log)", "Partial effect", title =
+  labs(x = "Distance to nearest \n linear element (m, log)", "Partial effect", title =
          "") +
   ylim(-15,15)+
   theme_classic()
@@ -849,7 +849,7 @@ p.dist.site <- abrbin.glob.site.gam |>
   ) +
   theme_classic() +
   ylim(-15,15)+
-  labs(x = "Distance to linear element (m, log)", "Partial effect", title = "") +
+  labs(x = "Distance to nearest \n linear element (m, log)", "Partial effect", title = "") +
   theme_classic()
 
 # hunting pressure
@@ -863,7 +863,7 @@ p.hunt <- draw(
   smooth_col = "darkblue",
   caption = ""
 ) +
-  labs(x = "Hunting shots (log)", "Partial effect", title =
+  labs(x = "Number of harvested animals (log)", "Partial effect", title =
          "") +
   ylim(-15,15)+
   theme_classic()
@@ -885,7 +885,7 @@ p.hunt.site <- abrbin.glob.site.gam |>
     labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
   ) +
   theme_classic() +
-  labs(x = "Hunting shots (log)", "Partial effect", title =
+  labs(x = "Number of harvested animals (log)", "Partial effect", title =
          "") +
   ylim(-15,15)+
   theme_classic()
@@ -902,7 +902,7 @@ p.app <- draw(
   caption = ""
 ) +
   ylim(-15,15)+
-  labs(x = "Mean appetency, relative index", "Partial effect", title = "") +
+  labs(x = "Mean palatability, relative index", "Partial effect", title = "") +
   theme_classic()
 
 # appetency (site specific)
@@ -923,7 +923,7 @@ p.app.site <- abrbin.glob.site.gam |>
   ) +
   ylim(-15,15)+
   theme_classic() +
-  labs(x = "Mean appetency", "Partial effect", title = "") +
+  labs(x = "Mean palatability", "Partial effect", title = "") +
   theme_classic()
 
 # visibility 
@@ -1501,11 +1501,11 @@ plot_zone <- ggplot(data=or.zone.sp, aes(y=n_species, x=odds, xmin=lower, xmax=u
 
 ## Figure 4a: forest plot of scaled effects - community level ------------------
 
-labs.variables <- c("log(Species richness)",
-                    "Appetency",
+labs.variables <- c("log(species richness)",
+                    "Palatability",
                     "Years",
                     "Elevation",
-                    "log(Hunting shots)",
+                    "log(N. harvested animals)",
                     "Distance",
                     "log(Rugosity)",
                     "Visibility",
@@ -1535,12 +1535,11 @@ fp.comm <- plot_model(
         "Visibility",
         "log(Rugosity)",
         "Distance",
-        "log(Hunting shots)",
+        "log(Harvested animals)",
         "Elevation",
         "Years",
-        "Appetency",
-        "log(Species richness)"
-      )
+        "Palatability",
+        "log(Species richness)")
   )
 
 fp.comm
@@ -1573,10 +1572,10 @@ fp.comm.nosc <- plot_model(
     "Visibility",
     "log(Rugosity)",
     "Distance",
-    "log(Hunting shots)",
+    "log(Harvested animals)",
     "Elevation",
     "Years",
-    "Appetency",
+    "Palatability",
     "log(Species richness)"
   ))+
                      theme( axis.title.x = element_text(size = 12))

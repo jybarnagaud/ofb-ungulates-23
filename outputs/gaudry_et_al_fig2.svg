@@ -98,6 +98,7 @@
 <text x='235.23' y='398.19' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arial";' textLength='19.58px' lengthAdjust='spacingAndGlyphs'>2010</text>
 <text x='349.69' y='398.19' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arial";' textLength='19.58px' lengthAdjust='spacingAndGlyphs'>2012</text>
 <text x='464.15' y='398.19' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arial";' textLength='19.58px' lengthAdjust='spacingAndGlyphs'>2014</text>
+<text x='263.85' y='410.66' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='27.73px' lengthAdjust='spacingAndGlyphs'>Years</text>
 <text transform='translate(18.84,207.26) rotate(-90)' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='131.49px' lengthAdjust='spacingAndGlyphs'>browsed plots (% per year)</text>
 <rect x='495.14' y='168.02' width='93.90' height='78.47' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
 <text x='500.62' y='182.54' style='font-size: 11.00px; font-family: "Arial";' textLength='32.41px' lengthAdjust='spacingAndGlyphs'>cluster</text>
