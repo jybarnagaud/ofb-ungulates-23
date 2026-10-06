@@ -719,7 +719,7 @@ p.elev <-
     caption = ""
   ) +
   ylim(-15,15)+
-  labs(x = "Elevation (m)", "Partial effect", title = "") +
+  labs(x = "Elevation (m)", y = "Partial effect", title = " ") +
   theme_classic()
 
 # elevation (site - specific)
@@ -740,7 +740,7 @@ p.elev.site <- abrbin.glob.site.gam |>
   ) +
   ylim(-15,15)+
   theme_classic() +
-  labs(x = "Elevation (m)", "Partial effect", title = "") +
+  labs(x = "Elevation (m)",y =  "Partial effect", title = "") +
   theme_classic()
 
 # northness 
@@ -755,7 +755,7 @@ p.north <- draw(
   caption = ""
 ) +
   ylim(-15,15)+
-  labs(x = "Northness (relative index)", "Partial effect", title = "") +
+  labs(x = "Northness (relative index)",y =  "Partial effect", title = "") +
   theme_classic()
 
 # northness (site - specific)
@@ -776,7 +776,7 @@ p.north.site <- abrbin.glob.site.gam |>
   ) +
   theme_classic() +
   ylim(-15,15)+
-  labs(x = "Northness (relative index)", "Partial effect", title = "") +
+  labs(x = "Northness (relative index)",y =  "Partial effect", title = "") +
   theme_classic()
 
 # rugosity
@@ -791,7 +791,7 @@ p.rugo <- draw(
   caption = ""
 ) +
   ylim(-15,15)+
-  labs(x = "Rugosity (relative index, log)", "Partial effect", title = "") +
+  labs(x = "Rugosity (relative index, log)",y =  "Partial effect", title = "") +
   theme_classic()
 
 # rugosity (site specific)
@@ -812,7 +812,7 @@ p.rugo.site <- abrbin.glob.site.gam |>
   ) +
   theme_classic() +
   ylim(-15,15)+
-  labs(x = "Rugosity (relative index, log)", "Partial effect", title = "") +
+  labs(x = "Rugosity (relative index, log)", y =  "Partial effect", title = "") +
   theme_classic()
 
 # distance to linear elements 
@@ -826,7 +826,7 @@ p.dist <- draw(
   smooth_col = "darkblue",
   caption = ""
 ) +
-  labs(x = "Distance to nearest \n linear element (m, log)", "Partial effect", title =
+  labs(x = "Distance to nearest \n linear element (m, log)", y = "Partial effect", title =
          "") +
   ylim(-15,15)+
   theme_classic()
@@ -849,7 +849,7 @@ p.dist.site <- abrbin.glob.site.gam |>
   ) +
   theme_classic() +
   ylim(-15,15)+
-  labs(x = "Distance to nearest \n linear element (m, log)", "Partial effect", title = "") +
+  labs(x = "Distance to nearest \n linear element (m, log)", y =  "Partial effect", title = "") +
   theme_classic()
 
 # hunting pressure
@@ -863,7 +863,7 @@ p.hunt <- draw(
   smooth_col = "darkblue",
   caption = ""
 ) +
-  labs(x = "Number of harvested animals (log)", "Partial effect", title =
+  labs(x = "Number of harvested animals (log)", y = "Partial effect", title =
          "") +
   ylim(-15,15)+
   theme_classic()
@@ -885,7 +885,7 @@ p.hunt.site <- abrbin.glob.site.gam |>
     labels = c("Semnoz", "Cimeteret", "Hautes Bauges")
   ) +
   theme_classic() +
-  labs(x = "Number of harvested animals (log)", "Partial effect", title =
+  labs(x = "Number of harvested animals (log)", y =  "Partial effect", title =
          "") +
   ylim(-15,15)+
   theme_classic()
@@ -902,7 +902,7 @@ p.app <- draw(
   caption = ""
 ) +
   ylim(-15,15)+
-  labs(x = "Mean palatability, relative index", "Partial effect", title = "") +
+  labs(x = "Mean palatability, relative index", y = "Partial effect", title = "") +
   theme_classic()
 
 # appetency (site specific)
@@ -923,7 +923,7 @@ p.app.site <- abrbin.glob.site.gam |>
   ) +
   ylim(-15,15)+
   theme_classic() +
-  labs(x = "Mean palatability", "Partial effect", title = "") +
+  labs(x = "Mean palatability", y = "Partial effect", title = "") +
   theme_classic()
 
 # visibility 
@@ -938,7 +938,7 @@ p.viz <- draw(
   caption = ""
 ) +
   ylim(-15,15)+
-  labs(x = "Visibility (nb pixels)", "Partial effect", title = "") +
+  labs(x = "Visibility (nb pixels)", y =  "Partial effect", title = "") +
   theme_classic()
 
 # visibility (site specific)
@@ -959,7 +959,7 @@ p.viz.site <- abrbin.glob.site.gam |>
   ) +
   ylim(-15,15)+
   theme_classic() +
-  labs(x = "Visibility (nb pixels)", "Partial effect", title = "")  +
+  labs(x = "Visibility (nb pixels)", y = "Partial effect", title = "")  +
   theme_classic()
 
 # year effect 
@@ -974,7 +974,7 @@ p.year <- draw(
   caption =""
 ) +
   ylim(-15,15)+
-  labs(x = "Years", "Partial effect", title = "") +
+  labs(x = "Years", y = "Partial effect", title = "") +
   theme_classic()
 
 # year (site - specific)
@@ -995,7 +995,7 @@ p.year.site <- abrbin.glob.site.gam |>
   ) +
   ylim(-15,15)+
   theme_classic() +
-  labs(x = "Years", "Partial effect", title = "")  +
+  labs(x = "Years", y= "Partial effect", title = "")  +
   theme_classic()
 
 # species richness
@@ -1010,7 +1010,7 @@ p.sr <- draw(
   caption = ""
 ) +
   ylim(-15,15)+
-  labs(x = "Species richness (log)", "Partial effect", title =
+  labs(x = "Species richness (log)", y = "Partial effect", title =
          "") +
   theme_classic()
 
@@ -1505,7 +1505,7 @@ labs.variables <- c("log(species richness)",
                     "Palatability",
                     "Years",
                     "Elevation",
-                    "log(N. harvested animals)",
+                    "log(Harvested animals)",
                     "Distance",
                     "log(Rugosity)",
                     "Visibility",
